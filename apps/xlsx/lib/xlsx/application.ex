@@ -10,6 +10,7 @@ defmodule Xlsx.Application do
     children = [
       # Starts a worker by calling: Xlsx.Worker.start_link(arg)
       # {Xlsx.Worker, arg}
+      Xlsx.Supervisor
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
