@@ -18,6 +18,18 @@ defmodule Xlsx.Supervisor do
         shutdown: 2_000,
         type: :worker,
         modules: [Xlsx.Socket]
+      },
+      %{
+        id: Mongo,
+        start: {Mongo, :start_link, [[
+          name: :mongo, database: Application.get_env(:xlsx, :mongodb_database),
+          pool_size: Application.get_env(:xlsx, :mongodb_pool_size),
+          url: Application.get_env(:xlsx, :mongodb_url)
+        ]]},
+        restart: :permanent,
+        shutdown: 2_000,
+        type: :worker,
+        modules: [Mongo]
       }
     ]
     Supervisor.init(children, strategy: :one_for_one)

@@ -8,7 +8,10 @@
 # configurations or dependencies per app, it is best to
 # move said applications out of the umbrella.
 import Config
-
+config :xlsx,
+  mongodb_database: "SRS_16_DEV",
+  mongodb_pool_size: 3,
+  mongodb_url: "mongodb://localhost:57020"
 # Sample configuration:
 #
 #     config :logger, :console,

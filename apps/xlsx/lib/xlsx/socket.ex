@@ -6,6 +6,18 @@ defmodule Xlsx.Socket do
   def start_link(state) do
     GenServer.start_link(__MODULE__, Map.put(state, :workers, %{}), name: __MODULE__)
   end
+  def get_document do
+    cursor = Mongo.find(:mongo, "egresses", %{"_id" => "MNSSA016492-001159"})
+    # cursor = Mongo.find(:mongo, "users", %{})
+    rows = cursor
+      |>
+        Stream.map(&([
+          &1["patient"]["nationality"]["name"],
+        ]))
+      |> Enum.to_list()
+    IO.puts "#{inspect rows}"
+  end
+
 
   # Callbacks
   @impl true
@@ -27,7 +39,7 @@ defmodule Xlsx.Socket do
   end
 
   @impl true
-  def handle_info(msg, state) do
+  def handle_info(_msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE"
     {:noreply, state}
   end
