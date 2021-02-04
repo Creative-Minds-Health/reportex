@@ -1,69 +1,10 @@
 defmodule Xlsx.Socket do
   use GenServer
   require Logger
-  alias Elixlsx.Sheet
-  alias Elixlsx.Workbook
 
   # API
   def start_link(state) do
     GenServer.start_link(__MODULE__, Map.put(state, :workers, %{}), name: __MODULE__)
-  end
-  def get_document do
-    cursor = Mongo.find(:mongo, "egresses", %{})
-    fields = Mongo.find(:mongo, "reportex", %{"report_key" => "egresses"})
-    [fields_new|_] = fields |>
-      Stream.map(&(
-        &1["rows"]
-        # &1["patient"]["curp"]
-
-      ))
-    |> Enum.to_list()
-    # cursor = Mongo.find(:mongo, "users", %{})
-    rows = cursor
-      |>
-        Stream.map(&(
-          iterate_fields(&1, fields_new)
-        ))
-      |> Enum.to_list()
-    # IO.puts "#terminó"
-    IO.puts "#{inspect rows}"
-    Workbook.append_sheet(%Workbook{}, %Sheet{
-      name: "Third",
-      rows: rows
-    }) |> Elixlsx.write_to("egresses.xlsx")
-
-  end
-
-  def iterate_fields(item, []) do
-    []
-  end
-
-  def iterate_fields(item, [h|t]) do
-    [
-      get_value(item, h["field"] |> String.split("|"), h["field"], h["default_value"]) | iterate_fields(item, t)
-    ]
-  end
-
-  def get_value(item, [], field, default_value) do
-    item
-  end
-
-  def get_value(item, [h|t], "patient|nationality|key", default_value) do
-    case Map.get(Map.get(item, "patient", %{}), "is_abroad", :undefined) do
-      1 ->
-        patient = Map.get(item, "patient", %{});
-        nationality = Map.get(patient, "nationality", %{})
-        Map.get(nationality, "key", "")
-      _ -> default_value
-
-    end
-  end
-
-  def get_value(item, [h|t], field, default_value) do
-    case Map.get(item, h, :undefined) do
-      :undefined -> ""
-      value -> get_value(value, t, field, default_value)
-    end
   end
 
   # Callbacks
@@ -71,7 +12,16 @@ defmodule Xlsx.Socket do
   def init(state) do
     Process.flag(:trap_exit, true)
     Logger.info "GenServer is running..."
-    {:ok, state}
+    case :gen_tcp.listen(4_000, [:binary, {:packet, :raw}, {:active, false}, {:reuseaddr, true}] ) do
+      {:ok,lsocket} ->
+        GenServer.cast(__MODULE__, :create_child)
+        {:ok, Map.put(state, :lsocket, lsocket)}
+      {:error, reason}->
+        {:stop, reason}
+    end
+  end
+  def create_child() do
+    GenServer.cast(__MODULE__, :create_child)
   end
 
   @impl true
@@ -81,13 +31,30 @@ defmodule Xlsx.Socket do
   end
 
   @impl true
+  def handle_cast(:create_child, state) do
+    {:ok, pid} = Xlsx.Reportex.start(%{:lsocket => state[:lsocket], :parent => self()})
+    {:ok, date} = DateTime.now("America/Mexico_City")
+    Process.monitor(pid)
+    Logger.warning ["#{inspect state}"]
+    {:noreply, Map.put(state, :workers, Map.put(state[:workers], pid, %{:init_date => date}))}
+  end
   def handle_cast(_msg, state) do
     {:noreply, state}
   end
 
   @impl true
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    Logger.warning ["#{inspect pid}... delete"]
+    {:noreply, Map.put(state, :workers, Map.delete(state[:workers], pid))}
+  end
   def handle_info(_msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE"
     {:noreply, state}
+  end
+
+  @impl true
+  def terminate(_reason, state) do
+    Logger.warning ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state[:project]]
+    :ok
   end
 end

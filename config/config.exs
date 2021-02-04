@@ -12,6 +12,8 @@ config :xlsx,
   mongodb_database: "SRS_16_DEV",
   mongodb_pool_size: 3,
   mongodb_url: "mongodb://localhost:57020"
+
+config  :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 # Sample configuration:
 #
 #     config :logger, :console,

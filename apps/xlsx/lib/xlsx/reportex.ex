@@ -1,0 +1,127 @@
+defmodule Xlsx.Reportex do
+  use GenServer
+  require Logger
+
+  alias Elixlsx.Sheet
+  alias Elixlsx.Workbook
+
+  # API
+  def start(state) do
+    GenServer.start(__MODULE__, state)
+  end
+
+  # Callbacks
+  @impl true
+  def init(state) do
+    Process.flag(:trap_exit, true)
+    Logger.info "Reportex GenServer is running..."
+    GenServer.cast(self(), :listener)
+    {:ok, state}
+  end
+
+  @impl true
+  def handle_call(_request, _from, state) do
+    reply = :ok
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_cast(:listener, %{lsocket: lsocket, parent: parent}=state) do
+    {:ok, socket} = :gen_tcp.accept(lsocket)
+    Logger.info ["Pid #{inspect __MODULE__} socket accepted"]
+    GenServer.cast(parent, :create_child)
+    :ok = :inet.setopts(socket,[{:active,:once}])
+    {:noreply, Map.put(state, :socket, socket), 300_000};
+  end
+  def handle_cast(:stop, %{socket: socket}=state) do
+    :ok=:gen_tcp.close(socket)
+    Logger.warning ["#{inspect self()},#{inspect socket}... tcp_closed"]
+    {:stop, :normal, state}
+  end
+
+  def handle_cast(_msg, state) do
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:tcp_closed, _reason}, state) do
+    GenServer.cast(self(), :stop)
+    {:noreply, state}
+  end
+
+  def handle_info({:tcp, socket, "generate_xlsx"}, %{socket: sock}=state) do
+    Logger.info ["generate_xlsx"]
+    :ok=:inet.setopts(sock,[{:active, :once}])
+
+    cursor = Mongo.find(:mongo, "egresses", %{})
+    fields = Mongo.find(:mongo, "reportex", %{"report_key" => "egresses"})
+    [fields_new|_] = fields |>
+      Stream.map(&(
+        &1["rows"]
+      ))
+    |> Enum.to_list()
+
+    rows = cursor
+      |>
+        Stream.map(&(
+          iterate_fields(&1, fields_new)
+        ))
+      |> Enum.to_list()
+    Workbook.append_sheet(%Workbook{}, %Sheet{
+      name: "Resultados",
+      rows: rows
+    }) |> Elixlsx.write_to("egresses.xlsx")
+    response = "egress.xlsx"
+    :ok = :gen_tcp.send(socket, response)
+    Logger.info ["Respuesta #{inspect response}"]
+    {:noreply, Map.put(state, :response_socket, socket), 300_000}
+  end
+  def handle_info({:tcp, socket, data}, %{socket: sock}=state) do
+    Logger.info ["Socket message #{inspect data}"]
+    :ok=:inet.setopts(sock,[{:active, :once}])
+    {:noreply, Map.put(state, :response_socket, socket), 300_000}
+  end
+  def handle_info(_msg, state) do
+    Logger.info "UNKNOWN INFO MESSAGE"
+    {:noreply, state}
+  end
+
+  @impl true
+  def terminate(_reason, _state) do
+    Logger.warning ["#{inspect self()}... terminate"]
+    :ok
+  end
+
+  def iterate_fields(item, []) do
+    []
+  end
+
+  def iterate_fields(item, [h|t]) do
+    [
+      get_value(item, h["field"] |> String.split("|"), h["field"], h["default_value"]) | iterate_fields(item, t)
+    ]
+  end
+
+  def get_value(item, [], field, default_value) do
+    item
+  end
+
+  def get_value(item, [h|t], "patient|nationality|key", default_value) do
+    case Map.get(Map.get(item, "patient", %{}), "is_abroad", :undefined) do
+      1 ->
+        patient = Map.get(item, "patient", %{});
+        nationality = Map.get(patient, "nationality", %{})
+        Map.get(nationality, "key", "")
+      _ -> default_value
+
+    end
+  end
+
+  def get_value(item, [h|t], field, default_value) do
+    case Map.get(item, h, :undefined) do
+      :undefined -> ""
+      value -> get_value(value, t, field, default_value)
+    end
+  end
+
+end
