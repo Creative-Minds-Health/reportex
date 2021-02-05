@@ -32,7 +32,7 @@ defmodule Xlsx.Socket do
 
   @impl true
   def handle_cast(:create_child, state) do
-    {:ok, pid} = Xlsx.Reportex.start(%{:lsocket => state[:lsocket], :parent => self()})
+    {:ok, pid} = Xlsx.Report.start(%{:lsocket => state[:lsocket], :parent => self(), :workers => %{}})
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
     Logger.warning ["#{inspect state}"]
