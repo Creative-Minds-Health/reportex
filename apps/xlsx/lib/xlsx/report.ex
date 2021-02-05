@@ -16,7 +16,7 @@ defmodule Xlsx.Report do
     Process.flag(:trap_exit, true)
     Logger.info "Reportex GenServer is running..."
     GenServer.cast(self(), :listener)
-    {:ok, Map.put(state, "workers", %{}) |> Map.put("collector", %{}) |> Map.put("total", 0) |> Map.put("page", 0)}
+    {:ok, Map.put(state, "workers", %{}) |> Map.put("collector", %{}) |> Map.put("total", 0) |> Map.put("page", 0) |> Map.put("index", 0)}
   end
 
   @impl true
@@ -68,11 +68,16 @@ defmodule Xlsx.Report do
     {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total)}
   end
 
-  def handle_info(:run, %{"workers" => workers, "page" => page}=state) do
-    case next_worker(Map.keys(workers), workers) do
-      {:ok, pid} -> Logger.info "Poner a trabajar #{inspect pid}"
-      _ -> []
-    end
+  def handle_info(:run, %{"total" => total, "index" => index}=state) when index >= total do
+    Logger.warning "Se mandaron todos los registros"
+    {:noreply, state}
+  end
+  def handle_info(:run, %{"workers" => workers, "page" => page, "total" => total, "index" => index}=state) do
+    # case next_worker()
+    # case next_worker(Map.keys(workers), workers) do
+    #   {:ok, pid} -> Logger.info "Poner a trabajar #{inspect pid}"
+    #   _ -> []
+    # end
     # Process.sleep(5000)
     # for pid <- Map.keys(workers),
     #   GenServer.cast(pid, :start),
