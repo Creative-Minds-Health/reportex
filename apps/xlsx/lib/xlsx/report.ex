@@ -73,8 +73,8 @@ defmodule Xlsx.Report do
     {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total) |> Map.put("documents", record["config"]["documents"])}
   end
 
-  def handle_info(:run, %{"skip" => skip, "page" => page}=state) do
-    send(self(), {:run, (page + 1) * skip})
+  def handle_info(:run, %{"documents" => documents, "page" => page}=state) do
+    send(self(), {:run, (page + 1) * documents})
     {:noreply, state}
   end
 
