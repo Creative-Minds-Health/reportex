@@ -25,26 +25,27 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   @impl true
-  def handle_cast(:start, %{"query" => query, "rows" => rows, "collector" => collector}=state) do
-    cursor = Mongo.aggregate(:mongo, "egresses", query)
-    column_names = for item <- rows,
-      into: [],
-      do: [item["name"], bold: true, font: "Arial", size: 12]
-    records = cursor
-      |> Stream.map(&(
-        iterate_fields(&1, rows)
-      ))
-      |> Enum.to_list()
-    GenServer.cast(collector, {:concat, records})
-    {:stop, :normal, state}
-  end
   def handle_cast(_msg, state) do
     {:noreply, state}
   end
 
   @impl true
-  def handle_info(_msg, state) do
-    Logger.info "UNKNOWN INFO MESSAGE"
+  def handle_info({:run, skip, limit}, %{"query" => query, "rows" => rows, "collector" => collector, "parent" => parent}=state) do
+    Logger.warning ["paginacion: #{inspect [%{"$skip" => skip}, %{"$limit" => limit}]}"]
+    cursor = Mongo.aggregate(:mongo, "egresses", query ++ [%{"$skip" => skip}, %{"$limit" => limit}])
+    records = cursor
+      |> Stream.map(&(
+        iterate_fields(&1, rows)
+      ))
+      |> Enum.to_list()
+    :ok = GenServer.call(collector, {:concat, records})
+    :ok = GenServer.call(parent, :waiting_status)
+    send(parent, :run)
+    {:noreply, state}
+  end
+
+  def handle_info(msg, state) do
+    Logger.info "UNKNOWN INFO MESSAGE #{inspect msg}"
     {:noreply, state}
   end
 

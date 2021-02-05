@@ -16,13 +16,17 @@ defmodule Xlsx.Report do
     Process.flag(:trap_exit, true)
     Logger.info "Reportex GenServer is running..."
     GenServer.cast(self(), :listener)
-    {:ok, Map.put(state, "workers", %{}) |> Map.put("collector", %{}) |> Map.put("total", 0) |> Map.put("page", 0) |> Map.put("index", 0)}
+    {:ok, Map.put(state, "workers", %{}) |> Map.put("collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0)}
   end
 
   @impl true
+  def handle_call(:waiting_status, {from, _}, state) do
+    state = Map.put(state, "workers", Map.put(state["workers"], from, Map.put(state["workers"][from], "status", :waiting)))
+    {:reply, :ok, state}
+  end
+
   def handle_call(_request, _from, state) do
-    reply = :ok
-    {:reply, reply, state}
+    {:reply, :ok, state}
   end
 
   @impl true
@@ -58,21 +62,40 @@ defmodule Xlsx.Report do
     {:ok, total} = Mongo.count(:mongo, "egresses", query)
     {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => []})
     workers = for index <- 1..record["config"]["workers"],
-      {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "documents" => record["config"]["documents"], "query" => data_decode["query"], "collector" => collector}),
+      {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector}),
       {:ok, date} = DateTime.now("America/Mexico_City"),
       Process.monitor(pid),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
     Logger.info ("workers created #{inspect workers}")
     send(self(), :run)
-    {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total)}
+    {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total) |> Map.put("documents", record["config"]["documents"])}
   end
 
-  def handle_info(:run, %{"total" => total, "index" => index}=state) when index >= total do
+  def handle_info(:run, %{"total" => total, "skip" => skip}=state) when skip >= total do
     Logger.warning "Se mandaron todos los registros"
     {:noreply, state}
   end
-  def handle_info(:run, %{"workers" => workers, "page" => page, "total" => total, "index" => index}=state) do
+  def handle_info(:run, %{"workers" => workers, "page" => page, "total" => total, "skip" => skip, "documents" => documents}=state) do
+    limit = page * documents;
+    new_state =
+    case limit <= total do
+      :true ->
+        case next_worker(Map.keys(workers), workers) do
+          {:ok, pid} ->
+            send(pid, {:run, skip, limit})
+            send(self(), :run)
+
+            Map.put(state, "workers", Map.put(state["workers"], pid, Map.put(state["workers"][pid], "status", :occupied))) |> Map.put("skip", limit) |> Map.put("page", page + 1)
+          _ ->
+            Logger.warning ["Ya no hay trabajadores"]
+            state
+
+        end
+      _ ->
+        Logger.warning ["Menor de 100"]
+        state
+    end
     # case next_worker()
     # case next_worker(Map.keys(workers), workers) do
     #   {:ok, pid} -> Logger.info "Poner a trabajar #{inspect pid}"
@@ -82,7 +105,7 @@ defmodule Xlsx.Report do
     # for pid <- Map.keys(workers),
     #   GenServer.cast(pid, :start),
     #   do: ""
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
@@ -111,6 +134,14 @@ defmodule Xlsx.Report do
       :undefined -> []
       :waiting -> {:ok, h}
         _-> next_worker(t , workers)
+    end
+  end
+
+  defp set_status_worker(workers,pid) do
+    case Map.get(workers, pid, :undefined) do
+      pid ->
+        Logger.warning ["#{inspect Map.get(workers, pid, :undefined)}"]
+      _-> []
     end
   end
 

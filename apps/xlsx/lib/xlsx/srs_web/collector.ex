@@ -19,20 +19,23 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
+  def handle_call({:concat, records}, %{"rows" => rows}=state) do
+    Logger.warning ["Recibidossssssssssssss"]
+    # sheet = %Sheet{
+    #   name: "Resultados",
+    #   rows: rows ++ records
+    # }
+    # Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
+    # {:stop, :normal, Map.put(state, "rows", rows ++ records)}
+    {:reply, :ok, state}
+  end
+
   def handle_call(_request, _from, state) do
     reply = :ok
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_cast({:concat, records}, %{"rows" => rows}=state) do
-    sheet = %Sheet{
-      name: "Resultados",
-      rows: rows ++ records
-    }
-    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
-    {:stop, :normal, Map.put(state, "rows", rows ++ records)}
-  end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
   end
