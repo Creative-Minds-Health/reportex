@@ -31,7 +31,8 @@ defmodule Xlsx.MixProject do
       # {:sibling_app_in_umbrella, in_umbrella: true}
       {:mongodb_driver, "~> 0.6"},
       {:tzdata, "~> 1.1"},
-      {:elixlsx, "~> 0.4.2"}
+      {:elixlsx, "~> 0.4.2"},
+      {:poison, "~> 3.1"}
     ]
   end
 end
