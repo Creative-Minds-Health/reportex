@@ -49,28 +49,40 @@ defmodule Xlsx.Reportex do
     {:noreply, state}
   end
 
-  def handle_info({:tcp, socket, "generate_xlsx"}, %{socket: sock}=state) do
-    Logger.info ["generate_xlsx"]
+  def handle_info({:tcp, socket, data}, %{socket: sock}=state) do
+    data_decode = Poison.decode!(data)
     :ok=:inet.setopts(sock,[{:active, :once}])
 
-    cursor = Mongo.find(:mongo, "egresses", %{})
-    fields = Mongo.find(:mongo, "reportex", %{"report_key" => "egresses"})
-    [fields_new|_] = fields |>
-      Stream.map(&(
-        &1["rows"]
-      ))
+    cursor = Mongo.aggregate(:mongo, "egresses", data_decode["query"])
+    # cursor
+    # |> Enum.to_list()
+    # |> IO.inspect
+
+    [%{"$match" => query} | _] = data_decode["query"];
+    count = Mongo.count(:mongo, "egresses", query)
+
+    [fields|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]})
     |> Enum.to_list()
+
+    report_config = fields["config"]
+
+    names = get_row_names(fields["rows"])
 
     rows = cursor
       |>
         Stream.map(&(
-          iterate_fields(&1, fields_new)
+          iterate_fields(&1, fields["rows"])
         ))
       |> Enum.to_list()
-    Workbook.append_sheet(%Workbook{}, %Sheet{
+
+    sheet = %Sheet{
       name: "Resultados",
-      rows: rows
-    }) |> Elixlsx.write_to("egresses.xlsx")
+      rows: [names] ++ rows
+    }
+    # |> Sheet.set_cell("A5", "Double border", border: [bottom: [style: :double, color: "#cc3311"]])
+
+    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
+
     response = "egress.xlsx"
     :ok = :gen_tcp.send(socket, response)
     Logger.info ["Respuesta #{inspect response}"]
@@ -122,6 +134,14 @@ defmodule Xlsx.Reportex do
       :undefined -> ""
       value -> get_value(value, t, field, default_value)
     end
+  end
+
+  def get_row_names([]) do
+    []
+  end
+
+  def get_row_names([h|t]) do
+    [[h["name"], bold: true, font: "Arial", size: 12]|get_row_names(t)]
   end
 
 end
