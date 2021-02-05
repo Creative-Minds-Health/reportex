@@ -2,6 +2,9 @@ defmodule Xlsx.SrsWeb.Worker do
   use GenServer
   require Logger
 
+  alias Elixlsx.Sheet
+  alias Elixlsx.Workbook
+
   # API
   def start(state) do
     GenServer.start(__MODULE__, state)
@@ -12,7 +15,6 @@ defmodule Xlsx.SrsWeb.Worker do
   def init(state) do
     Process.flag(:trap_exit, true)
     Logger.info "Worker was created..."
-    GenServer.cast(self(), :listener)
     {:ok, state}
   end
 
@@ -23,7 +25,17 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   @impl true
-  def handle_cast(:stop, state) do
+  def handle_cast(:start, %{"query" => query, "rows" => rows, "collector" => collector}=state) do
+    cursor = Mongo.aggregate(:mongo, "egresses", query)
+    column_names = for item <- rows,
+      into: [],
+      do: [item["name"], bold: true, font: "Arial", size: 12]
+    records = cursor
+      |> Stream.map(&(
+        iterate_fields(&1, rows)
+      ))
+      |> Enum.to_list()
+    GenServer.cast(collector, {:concat, records})
     {:stop, :normal, state}
   end
   def handle_cast(_msg, state) do
@@ -37,9 +49,52 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   @impl true
-  def terminate(_reason, %{parent: parent}=state) do
+  def terminate(_reason, %{"parent" => parent}=state) do
     Logger.warning ["#{inspect self()} worker... terminate"]
     :ok
+  end
+
+
+
+
+  def iterate_fields(item, []) do
+    []
+  end
+
+  def iterate_fields(item, [h|t]) do
+    [
+      get_value(item, h["field"] |> String.split("|"), h["field"], h["default_value"]) | iterate_fields(item, t)
+    ]
+  end
+
+  def get_value(item, [], field, default_value) do
+    item
+  end
+
+  def get_value(item, [h|t], "patient|nationality|key", default_value) do
+    case Map.get(Map.get(item, "patient", %{}), "is_abroad", :undefined) do
+      1 ->
+        patient = Map.get(item, "patient", %{});
+        nationality = Map.get(patient, "nationality", %{})
+        Map.get(nationality, "key", "")
+      _ -> default_value
+
+    end
+  end
+
+  def get_value(item, [h|t], field, default_value) do
+    case Map.get(item, h, :undefined) do
+      :undefined -> ""
+      value -> get_value(value, t, field, default_value)
+    end
+  end
+
+  def get_row_names([]) do
+    []
+  end
+
+  def get_row_names([h|t]) do
+    [[h["name"], bold: true, font: "Arial", size: 12]|get_row_names(t)]
   end
 
 end

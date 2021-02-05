@@ -4,7 +4,7 @@ defmodule Xlsx.Socket do
 
   # API
   def start_link(state) do
-    GenServer.start_link(__MODULE__, Map.put(state, :workers, %{}), name: __MODULE__)
+    GenServer.start_link(__MODULE__, Map.put(state, "workers", %{}), name: __MODULE__)
   end
 
   # Callbacks
@@ -15,7 +15,7 @@ defmodule Xlsx.Socket do
     case :gen_tcp.listen(4_000, [:binary, {:packet, :raw}, {:active, false}, {:reuseaddr, true}] ) do
       {:ok,lsocket} ->
         GenServer.cast(__MODULE__, :create_child)
-        {:ok, Map.put(state, :lsocket, lsocket)}
+        {:ok, Map.put(state, "lsocket", lsocket)}
       {:error, reason}->
         {:stop, reason}
     end
@@ -32,11 +32,11 @@ defmodule Xlsx.Socket do
 
   @impl true
   def handle_cast(:create_child, state) do
-    {:ok, pid} = Xlsx.Report.start(%{:lsocket => state[:lsocket], :parent => self(), :workers => %{}})
+    {:ok, pid} = Xlsx.Report.start(%{"lsocket" => state["lsocket"], "parent" => self()})
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
     Logger.warning ["#{inspect state}"]
-    {:noreply, Map.put(state, :workers, Map.put(state[:workers], pid, %{:init_date => date}))}
+    {:noreply, Map.put(state, "workers", Map.put(state["workers"], pid, %{"init_date" => date}))}
   end
   def handle_cast(_msg, state) do
     {:noreply, state}
@@ -45,7 +45,7 @@ defmodule Xlsx.Socket do
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
     Logger.warning ["#{inspect pid}... delete"]
-    {:noreply, Map.put(state, :workers, Map.delete(state[:workers], pid))}
+    {:noreply, Map.put(state, "workers", Map.delete(state["workers"], pid))}
   end
   def handle_info(_msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE"
@@ -54,7 +54,7 @@ defmodule Xlsx.Socket do
 
   @impl true
   def terminate(_reason, state) do
-    Logger.warning ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state[:project]]
+    Logger.warning ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state["project"]]
     :ok
   end
 end
