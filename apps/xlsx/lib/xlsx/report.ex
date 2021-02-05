@@ -53,13 +53,14 @@ defmodule Xlsx.Report do
     {:noreply, state}
   end
 
-  def handle_info({:tcp, socket, data}, %{"socket" => sock}=state) do
+  def handle_info({:tcp, socket, data}, %{"socket" => sock, "page" => page}=state) do
     data_decode = Poison.decode!(data)
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
     :ok=:inet.setopts(sock,[{:active, :once}])
     workers = %{}
     [%{"$match" => query} | _] = data_decode["query"];
     {:ok, total} = Mongo.count(:mongo, "egresses", query)
+    Logger.warning ["total #{inspect total}"]
     {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => []})
     workers = for index <- 1..record["config"]["workers"],
       {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector}),
@@ -68,32 +69,42 @@ defmodule Xlsx.Report do
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
     Logger.info ("workers created #{inspect workers}")
-    send(self(), :run)
+    send(self(), {:run, page * record["config"]["documents"]})
     {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total) |> Map.put("documents", record["config"]["documents"])}
   end
 
-  def handle_info(:run, %{"total" => total, "skip" => skip}=state) when skip >= total do
+  def handle_info(:run, %{"skip" => skip, "page" => page}=state) do
+    send(self(), {:run, (page + 1) * skip})
+    {:noreply, state}
+  end
+
+  def handle_info({:run, limit}, %{"total" => total, "skip" => skip}=state) when skip >= total do
     Logger.warning "Se mandaron todos los registros"
     {:noreply, state}
   end
-  def handle_info(:run, %{"workers" => workers, "page" => page, "total" => total, "skip" => skip, "documents" => documents}=state) do
-    limit = page * documents;
-    new_state =
-    case limit <= total do
-      :true ->
-        case next_worker(Map.keys(workers), workers) do
-          {:ok, pid} ->
-            send(pid, {:run, skip, limit})
-            send(self(), :run)
 
-            Map.put(state, "workers", Map.put(state["workers"], pid, Map.put(state["workers"][pid], "status", :occupied))) |> Map.put("skip", limit) |> Map.put("page", page + 1)
-          _ ->
-            Logger.warning ["Ya no hay trabajadores"]
-            state
+  def handle_info({:run, limit}, %{"total" => total, "workers" => workers, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
+    new_state = case next_worker(Map.keys(workers), workers) do
+      {:ok, pid} ->
+        send(pid, {:run, skip, limit, documents})
+        send(self(), {:run, (page + 1) * limit})
 
-        end
+        Map.put(state, "workers", Map.put(state["workers"], pid, Map.put(state["workers"][pid], "status", :occupied))) |> Map.put("skip", limit) |> Map.put("page", page + 1)
       _ ->
-        Logger.warning ["Menor de 100"]
+        Logger.warning ["Ya no hay trabajadores"]
+        state
+    end
+    {:noreply, new_state}
+  end
+  def handle_info({:run, limit}, %{"workers" => workers, "page" => page, "total" => total, "skip" => skip, "documents" => documents}=state)  when limit > total do
+    new_state = case next_worker(Map.keys(workers), workers) do
+      {:ok, pid} ->
+        send(pid, {:run, skip, total, (total - skip)})
+        send(self(), {:run, total})
+
+        Map.put(state, "workers", Map.put(state["workers"], pid, Map.put(state["workers"][pid], "status", :occupied))) |> Map.put("skip", limit) |> Map.put("page", page + 1)
+      _ ->
+        Logger.warning ["Ya no hay trabajadores"]
         state
     end
     # case next_worker()
