@@ -35,7 +35,7 @@ defmodule Xlsx.Socket do
     {:ok, pid} = Xlsx.Report.start(%{"lsocket" => state["lsocket"], "parent" => self()})
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
-    Logger.warning ["#{inspect state}"]
+    Logger.info ["#{inspect state}"]
     {:noreply, Map.put(state, "workers", Map.put(state["workers"], pid, %{"init_date" => date}))}
   end
   def handle_cast(_msg, state) do

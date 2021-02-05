@@ -63,16 +63,16 @@ defmodule Xlsx.Report do
       Process.monitor(pid),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
+    Logger.info ("workers created #{inspect workers}")
     send(self(), :run)
     {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total)}
   end
 
   def handle_info(:run, %{"workers" => workers, "page" => page}=state) do
-     Logger.info "AJKLAJKLAJKLAJKL"
-    # case pre_run(Map.keys(workers), workers) do
-    #   {:ok, pid} -> Logger.info "se encontro pid"
-    #   _ -> []
-    # end
+    case pre_run(Map.keys(workers), workers) do
+      {:ok, pid} -> Logger.info "Poner a trabajar #{inspect pid}"
+      _ -> []
+    end
     # Process.sleep(5000)
     # for pid <- Map.keys(workers),
     #   GenServer.cast(pid, :start),
