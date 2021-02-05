@@ -69,7 +69,7 @@ defmodule Xlsx.Report do
   end
 
   def handle_info(:run, %{"workers" => workers, "page" => page}=state) do
-    case pre_run(Map.keys(workers), workers) do
+    case next_worker(Map.keys(workers), workers) do
       {:ok, pid} -> Logger.info "Poner a trabajar #{inspect pid}"
       _ -> []
     end
@@ -100,12 +100,12 @@ defmodule Xlsx.Report do
     :ok
   end
 
-  defp pre_run([], _workers) do [] end
-  defp pre_run([h|t], workers) do
+  defp next_worker([], _workers) do [] end
+  defp next_worker([h|t], workers) do
     case Map.get(workers, h, %{}) |> Map.get("status", :undefined) do
       :undefined -> []
       :waiting -> {:ok, h}
-        _-> pre_run(t , workers)
+        _-> next_worker(t , workers)
     end
   end
 
