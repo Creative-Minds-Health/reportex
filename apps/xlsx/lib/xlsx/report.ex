@@ -68,30 +68,31 @@ defmodule Xlsx.Report do
       Process.monitor(pid),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
-    Logger.info ("workers created #{inspect workers}")
     send(self(), {:run, page * record["config"]["documents"]})
     {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total) |> Map.put("documents", record["config"]["documents"])}
   end
 
-  def handle_info(:run, %{"documents" => documents, "page" => page}=state) do
-    send(self(), {:run, (page + 1) * documents})
+  def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip}=state) when skip >= total do
+    GenServer.cast(from, :stop)
+    {:noreply, state}
+  end
+  def handle_info({:run_by_worker, from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip}=state) do
+    send(self(), {:run, page * documents})
     {:noreply, state}
   end
 
-  def handle_info({:run, limit}, %{"total" => total, "skip" => skip}=state) when skip >= total do
-    Logger.warning "Se mandaron todos los registros"
-    {:noreply, state}
-  end
+  # def handle_info({:run, limit}, %{"total" => total, "skip" => skip}=state) when skip >= total do
+  #   Logger.warning "Se mandaron todos los registros"
+  #   {:noreply, state}
+  # end
 
   def handle_info({:run, limit}, %{"total" => total, "workers" => workers, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
     new_state = case next_worker(Map.keys(workers), workers) do
       {:ok, pid} ->
         send(pid, {:run, skip, limit, documents})
-        send(self(), {:run, (page + 1) * limit})
-
+        send(self(), {:run, (page + 1) * documents})
         Map.put(state, "workers", Map.put(state["workers"], pid, Map.put(state["workers"][pid], "status", :occupied))) |> Map.put("skip", limit) |> Map.put("page", page + 1)
       _ ->
-        Logger.warning ["Ya no hay trabajadores"]
         state
     end
     {:noreply, new_state}
@@ -99,12 +100,11 @@ defmodule Xlsx.Report do
   def handle_info({:run, limit}, %{"workers" => workers, "page" => page, "total" => total, "skip" => skip, "documents" => documents}=state)  when limit > total do
     new_state = case next_worker(Map.keys(workers), workers) do
       {:ok, pid} ->
+        # Logger.warning ["page #{page}, skip #{inspect skip}, limit #{inspect limit}, documents #{inspect documents}"]
         send(pid, {:run, skip, total, (total - skip)})
         send(self(), {:run, total})
-
         Map.put(state, "workers", Map.put(state["workers"], pid, Map.put(state["workers"][pid], "status", :occupied))) |> Map.put("skip", limit) |> Map.put("page", page + 1)
       _ ->
-        Logger.warning ["Ya no hay trabajadores"]
         state
     end
     # case next_worker()
@@ -120,8 +120,16 @@ defmodule Xlsx.Report do
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
-    Logger.warning ["#{inspect pid} worker... deleted"]
-    {:noreply, Map.put(state, "workers", Map.delete(state["workers"], pid))}
+    # Logger.warning ["#{inspect pid} worker... deleted"]
+    new_workers = Map.delete(state["workers"], pid)
+    new_state = case Map.keys(new_workers) do
+      [] ->
+        Logger.warning ["Generar xlsx"]
+        state
+      _->
+        Map.put(state, "workers", new_workers)
+    end
+    {:noreply, new_state}
   end
   # def handle_info({:tcp, socket, data}, %{socket: sock}=state) do
   #   Logger.info ["Socket message #{inspect data}"]
@@ -129,7 +137,7 @@ defmodule Xlsx.Report do
   #   {:noreply, Map.put(state, :response_socket, socket), 300_000}
   # end
   def handle_info(msg, state) do
-    Logger.info "UNKNOWN INFO MESSAGE #{msg}"
+    Logger.info "UNKNOWN INFO MESSAGE #{inspect msg}"
     {:noreply, state}
   end
 

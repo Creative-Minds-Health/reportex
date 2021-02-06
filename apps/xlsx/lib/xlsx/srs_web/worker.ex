@@ -14,7 +14,7 @@ defmodule Xlsx.SrsWeb.Worker do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    Logger.info "Worker was created..."
+    # Logger.info "Worker was created..."
     {:ok, state}
   end
 
@@ -25,6 +25,9 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   @impl true
+  def handle_cast(:stop, state) do
+    {:stop, :normal, state}
+  end
   def handle_cast(_msg, state) do
     {:noreply, state}
   end
@@ -40,7 +43,7 @@ defmodule Xlsx.SrsWeb.Worker do
       |> Enum.to_list()
     :ok = GenServer.call(collector, {:concat, records})
     :ok = GenServer.call(parent, :waiting_status)
-    send(parent, :run)
+    send(parent, {:run_by_worker, self()})
     {:noreply, state}
   end
 
