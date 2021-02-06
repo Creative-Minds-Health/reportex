@@ -24,8 +24,14 @@ defmodule Xlsx.Supervisor do
         start: {Mongo, :start_link, [[
           name: :mongo, database: Application.get_env(:xlsx, :mongodb_database),
           pool_size: Application.get_env(:xlsx, :mongodb_pool_size),
-          url: Application.get_env(:xlsx, :mongodb_url)
-        ]]},
+          url: Application.get_env(:xlsx, :mongodb_url),
+          timeout: 30_000,
+          ssl: true,
+          ssl_opts: [
+            ciphers: ['AES256-GCM-SHA384'],
+            versions: [:"tlsv1.2"]
+]
+          ]]},
         restart: :permanent,
         shutdown: 2_000,
         type: :worker,
