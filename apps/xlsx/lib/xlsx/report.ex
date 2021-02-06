@@ -61,6 +61,12 @@ defmodule Xlsx.Report do
     [%{"$match" => query} | _] = data_decode["query"];
     {:ok, total} = Mongo.count(:mongo, "egresses", query)
     Logger.warning ["total #{inspect total}"]
+
+    names = for item <- record["rows"],
+      into: [],
+      do: item["name"]
+       Logger.warning ["names #{inspect names}"]
+
     {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => []})
     workers = for index <- 1..record["config"]["workers"],
       {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector}),
@@ -69,7 +75,7 @@ defmodule Xlsx.Report do
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
     send(self(), {:run, page * record["config"]["documents"]})
-    {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total) |> Map.put("documents", record["config"]["documents"])}
+    {:noreply, Map.put(state, "workers", workers) |> Map.put("total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
   end
 
   def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip}=state) when skip >= total do
@@ -119,12 +125,12 @@ defmodule Xlsx.Report do
     {:noreply, new_state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     # Logger.warning ["#{inspect pid} worker... deleted"]
     new_workers = Map.delete(state["workers"], pid)
     new_state = case Map.keys(new_workers) do
       [] ->
-        Logger.warning ["Generar xlsx"]
+        GenServer.cast(collector, :generate)
         state
       _->
         Map.put(state, "workers", new_workers)

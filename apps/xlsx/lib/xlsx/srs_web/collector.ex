@@ -34,15 +34,15 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
-  def handle_cast({:csoncat, records}, %{"rows" => rows}=state) do
-    Logger.warning ["Recibidossssssssssssss"]
-    # sheet = %Sheet{
-    #   name: "Resultados",
-    #   rows: rows ++ records
-    # }
-    # Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
-    # {:stop, :normal, Map.put(state, "rows", rows ++ records)}
-    {:noreply, :ok, Map.put(state, "rows", rows ++ records)}
+  def handle_cast(:generate, %{"rows" => rows}=state) do
+    Logger.info "Generate..."
+    sheet = %Sheet{
+      name: "Resultados",
+      rows: rows
+    }
+    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
+    Logger.info "Finish..."
+    {:noreply, :ok, Map.put(state, "rows", rows)}
   end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}

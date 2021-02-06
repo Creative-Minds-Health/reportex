@@ -34,7 +34,6 @@ defmodule Xlsx.SrsWeb.Worker do
 
   @impl true
   def handle_info({:run, skip, limit, documents}, %{"query" => query, "rows" => rows, "collector" => collector, "parent" => parent}=state) do
-    Logger.warning ["pagination: #{inspect [%{"$skip" => skip}, %{"$limit" => documents}]}"]
     cursor = Mongo.aggregate(:mongo, "egresses", query ++ [%{"$skip" => skip}, %{"$limit" => documents}])
     records = cursor
       |> Stream.map(&(
