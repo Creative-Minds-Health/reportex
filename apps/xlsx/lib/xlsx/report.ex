@@ -67,9 +67,9 @@ defmodule Xlsx.Report do
       do: item["name"]
        Logger.warning ["names #{inspect names}"]
 
-    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => []})
+    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names})
     workers = for index <- 1..record["config"]["workers"],
-      {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector, "columns" => names}),
+      {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector}),
       {:ok, date} = DateTime.now("America/Mexico_City"),
       Process.monitor(pid),
       into: %{},
@@ -125,12 +125,12 @@ defmodule Xlsx.Report do
     {:noreply, new_state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector, "columns" => columns}=state) do
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     # Logger.warning ["#{inspect pid} worker... deleted"]
     new_workers = Map.delete(state["workers"], pid)
     new_state = case Map.keys(new_workers) do
       [] ->
-        GenServer.cast(collector, {:generate, columns})
+        GenServer.cast(collector, :generate)
         state
       _->
         Map.put(state, "workers", new_workers)

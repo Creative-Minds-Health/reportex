@@ -34,7 +34,7 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
-  def handle_cast({:generate, columns}, %{"rows" => rows}=state) do
+  def handle_cast(:generate, %{"rows" => rows, "columns" => columns}=state) do
     Logger.info "Generate..."
     sheet = %Sheet{
       name: "Resultados",
