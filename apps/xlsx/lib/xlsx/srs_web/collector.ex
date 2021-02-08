@@ -34,11 +34,11 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"rows" => rows}=state) do
+  def handle_cast(:generate, %{"rows" => rows, "columns" => columns}=state) do
     Logger.info "Generate..."
     sheet = %Sheet{
       name: "Resultados",
-      rows: rows
+      rows: [columns] ++ rows
     }
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
     Logger.info "Finish..."

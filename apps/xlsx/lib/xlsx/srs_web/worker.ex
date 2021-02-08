@@ -48,7 +48,7 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   def handle_info(msg, state) do
-    Logger.info "UNKNOWN INFO MESSAGE #{inspect msg}"
+    Logger.info "UNKNOWN INFO MESSAGE #{inspect state}"
     {:noreply, state}
   end
 

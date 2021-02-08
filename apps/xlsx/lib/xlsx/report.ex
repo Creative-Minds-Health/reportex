@@ -62,10 +62,9 @@ defmodule Xlsx.Report do
       into: [],
       do: item["name"]
        Logger.warning ["names #{inspect names}"]
-
-    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => []})
+    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names})
     for _index <- 1..record["config"]["workers"],
-      {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"] }),
+      {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
       {:ok, date} = DateTime.now("America/Mexico_City"),
       Process.monitor(pid),
       :ok = Xlsx.XlsxMnesia.dirty_write(pid, :waiting, date),
