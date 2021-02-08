@@ -86,19 +86,24 @@ defmodule Xlsx.SrsWeb.Worker do
     end
   end
 
+  def get_value(item, [h|t], "patient|splited_age", default_value) do
+    Map.get(item, "patient", %{}) |> Map.get("splited_age", %{}) |> Map.get("years", default_value)
+    #falta validar los yers, months y days y agregar la columna claveEdad
+  end
+
   def get_value(item, [h|t], field, default_value) do
     case Map.get(item, h, :undefined) do
-      :undefined -> ""
+      :undefined -> default_value
       value -> get_value(value, t, field, default_value)
     end
   end
 
-  def get_row_names([]) do
-    []
-  end
-
-  def get_row_names([h|t]) do
-    [[h["name"], bold: true, font: "Arial", size: 12]|get_row_names(t)]
-  end
+  # def get_row_names([]) do
+  #   []
+  # end
+  #
+  # def get_row_names([h|t]) do
+  #   [[h["name"], bold: true, font: "Arial", size: 12]|get_row_names(t)]
+  # end
 
 end
