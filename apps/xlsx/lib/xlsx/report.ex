@@ -61,11 +61,7 @@ defmodule Xlsx.Report do
       do: item["name"]
        Logger.warning ["names #{inspect names}"]
     {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names})
-
-    n_workers = case round(total / record["config"] ["documents"]) < record["config"]["workers"] do
-      :true -> round(total / record["config"] ["documents"])
-      :false ->  record["config"]["workers"]
-    end
+    n_workers = get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"])
     for _index <- 1..n_workers,
       {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
       {:ok, date} = DateTime.now("America/Mexico_City"),
@@ -142,6 +138,19 @@ defmodule Xlsx.Report do
   def terminate(_reason, _state) do
     Logger.warning ["#{inspect self()}... terminate"]
     :ok
+  end
+
+  def get_n_workers(0, round_total, config_workers) do
+    Logger.info ["Error en total"]
+  end
+  def get_n_workers(total, 0, config_workers) do
+    get_n_workers(total, 1, config_workers)
+  end
+  def get_n_workers(total, round_total, config_workers) do
+    case round_total < config_workers do
+      :true -> round_total
+      :false ->  config_workers
+    end
   end
 
 end
