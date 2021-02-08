@@ -4,6 +4,7 @@ defmodule Xlsx.Application do
   @moduledoc false
 
   use Application
+  require Logger
 
   @impl true
   def start(_type, _args) do
@@ -12,7 +13,7 @@ defmodule Xlsx.Application do
       # {Xlsx.Worker, arg}
       Xlsx.Supervisor
     ]
-
+    :ok = Xlsx.XlsxMnesia.init()
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Xlsx.Supervisor]

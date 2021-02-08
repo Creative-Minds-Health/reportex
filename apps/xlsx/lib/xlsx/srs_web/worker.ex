@@ -2,8 +2,6 @@ defmodule Xlsx.SrsWeb.Worker do
   use GenServer
   require Logger
 
-  alias Elixlsx.Sheet
-  alias Elixlsx.Workbook
 
   # API
   def start(state) do
@@ -33,13 +31,16 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   @impl true
-  def handle_info({:run, skip, limit, documents}, %{"query" => query, "rows" => rows, "collector" => collector, "parent" => parent}=state) do
-    cursor = Mongo.aggregate(:mongo, "egresses", query ++ [%{"$skip" => skip}, %{"$limit" => documents}])
+  def handle_info({:run, skip, _limit, documents}, %{"query" => query, "rows" => rows, "collector" => collector, "parent" => parent, "collection" => collection}=state) do
+    cursor = Mongo.aggregate(:mongo, collection, query ++ [%{"$skip" => skip}, %{"$limit" => documents}], [timeout: 60_000])
+    {:ok, _date} = DateTime.now("America/Mexico_City")
     records = cursor
       |> Stream.map(&(
         iterate_fields(&1, rows)
       ))
       |> Enum.to_list()
+    {:ok, _date2} = DateTime.now("America/Mexico_City")
+    # Logger.info ["Segundos: #{DateTime.diff(date2, date, :second)}"]
     :ok = GenServer.call(collector, {:concat, records})
     :ok = GenServer.call(parent, :waiting_status)
     send(parent, {:run_by_worker, self()})
@@ -52,7 +53,7 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   @impl true
-  def terminate(_reason, %{"parent" => parent}=state) do
+  def terminate(_reason, _state) do
     Logger.warning ["#{inspect self()} worker... terminate"]
     :ok
   end
@@ -60,7 +61,7 @@ defmodule Xlsx.SrsWeb.Worker do
 
 
 
-  def iterate_fields(item, []) do
+  def iterate_fields(_item, []) do
     []
   end
 
@@ -70,11 +71,11 @@ defmodule Xlsx.SrsWeb.Worker do
     ]
   end
 
-  def get_value(item, [], field, default_value) do
+  def get_value(item, [], _field, _default_value) do
     item
   end
 
-  def get_value(item, [h|t], "patient|nationality|key", default_value) do
+  def get_value(item, [_h|_t], "patient|nationality|key", default_value) do
     case Map.get(Map.get(item, "patient", %{}), "is_abroad", :undefined) do
       1 ->
         patient = Map.get(item, "patient", %{});
