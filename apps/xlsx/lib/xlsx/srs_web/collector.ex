@@ -39,7 +39,18 @@ defmodule Xlsx.SrsWeb.Collector do
     sheet = %Sheet{
       name: "Resultados",
       rows: [columns] ++ rows
-    }
+    } |> Sheet.set_col_width("A", 17.0)
+    |> Sheet.set_col_width("B", 20.0)
+    |> Sheet.set_col_width("C", 17.0)
+    |> Sheet.set_col_width("D", 17.0)
+    |> Sheet.set_col_width("E", 17.0)
+    |> Sheet.set_col_width("F", 17.0)
+    |> Sheet.set_col_width("G", 17.0)
+    |> Sheet.set_col_width("H", 17.0)
+    |> Sheet.set_col_width("I", 14.0)
+    |> Sheet.set_col_width("J", 14.0)
+    |> Sheet.set_col_width("K", 14.0)
+    |> Sheet.set_col_width("L", 14.0)
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
     Logger.info "Finish..."
     {:noreply, :ok, Map.put(state, "rows", rows)}
