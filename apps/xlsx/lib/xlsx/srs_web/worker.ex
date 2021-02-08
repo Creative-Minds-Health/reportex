@@ -87,8 +87,8 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   def get_value(item, [h|t], "patient|splited_age", default_value) do
-    Map.get(item, "patient", %{}) |> Map.get("splited_age", %{}) |> Map.get("years", default_value)
-    #falta validar los yers, months y days y agregar la columna claveEdad
+    splited_age = Map.get(item, "patient", %{}) |> Map.get("splited_age", %{})
+    Xlsx.SrsWeb.ParserA.age(Map.get(splited_age, "years", 0), Map.get(splited_age, "months", 0), Map.get(splited_age, "days", 0), default_value)
   end
 
   def get_value(item, [h|t], field, default_value) do
