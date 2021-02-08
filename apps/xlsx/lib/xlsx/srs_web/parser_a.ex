@@ -17,4 +17,12 @@ defmodule Xlsx.SrsWeb.ParserA do
     [default_value, 9]
   end
 
+  # def was_born_hospital(in_hospital_key, _years, _months, _default_value) in_hospital_key !== :undefined do
+  #   in_hospital_key
+  # end
+  #
+  # def was_born_hospital(_in_hospital_key, _years, _months, default_value)  do
+  #   default_value
+  # end
+
 end

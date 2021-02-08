@@ -71,9 +71,6 @@ defmodule Xlsx.SrsWeb.Worker do
         value ++ iterate_fields(item, t);
       value -> [value | iterate_fields(item, t)]
     end
-    # [
-    #   get_value(item, h["field"] |> String.split("|"), h["field"], h["default_value"]) | iterate_fields(item, t)
-    # ]
   end
 
   def get_value(item, [], _field, _default_value) do
@@ -93,6 +90,12 @@ defmodule Xlsx.SrsWeb.Worker do
     splited_age = Map.get(item, "patient", %{}) |> Map.get("splited_age", %{})
     {:multi, Xlsx.SrsWeb.ParserA.age(Map.get(splited_age, "years", 0), Map.get(splited_age, "months", 0), Map.get(splited_age, "days", 0), default_value)}
   end
+
+  # def get_value(item, [h|t], "patient|was_born_hospital|key", default_value) do
+  #   splited_age = Map.get(item, "patient", %{}) |> Map.get("splited_age", %{})
+  #
+  #   Xlsx.SrsWeb.ParserA.was_born_hospital(Map.get(item, "patient", %{}) |> Map.get("was_born_hospital", %{}) |> Map.get("key", :undefined), Map.get(splited_age, "years", 0), Map.get(splited_age, "months", 0), default_value)
+  # end
 
   def get_value(_item, [_h|_t], "patient|claveEdad", _default_value) do
     ""
