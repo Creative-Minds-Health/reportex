@@ -31,7 +31,9 @@ defmodule Xlsx.XlsxMnesia do
   end
 
   def delete(pid) do
-    :mnesia.transaction(fn -> :mnesia.delete({XlsxWorker, pid}) end)
+    {:atomic, :ok} = :mnesia.transaction(fn ->
+      :mnesia.dirty_delete({XlsxWorker, pid})
+    end)
   end
 
   def empty_workers() do

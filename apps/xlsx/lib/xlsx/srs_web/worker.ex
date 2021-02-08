@@ -47,14 +47,14 @@ defmodule Xlsx.SrsWeb.Worker do
     {:noreply, state}
   end
 
-  def handle_info(msg, state) do
-    Logger.info "UNKNOWN INFO MESSAGE #{inspect state}"
+  def handle_info(_msg, state) do
+    Logger.info "UNKNOWN INFO MESSAGE"
     {:noreply, state}
   end
 
   @impl true
   def terminate(_reason, _state) do
-    Logger.warning ["#{inspect self()} worker... terminate"]
+    # Logger.warning ["#{inspect self()} worker... terminate"]
     :ok
   end
 
