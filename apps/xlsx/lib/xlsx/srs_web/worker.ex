@@ -66,13 +66,11 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   def iterate_fields(item, [h|t]) do
-    results = case get_value(item, h["field"] |> String.split("|"), h["field"], h["default_value"]) do
+    case get_value(item, h["field"] |> String.split("|"), h["field"], h["default_value"]) do
       {:multi, value} ->
-        value
-      value -> [value]
+        value ++ iterate_fields(item, t);
+      value -> [value | iterate_fields(item, t)]
     end
-
-    results ++ iterate_fields(item, t);
     # [
     #   get_value(item, h["field"] |> String.split("|"), h["field"], h["default_value"]) | iterate_fields(item, t)
     # ]
