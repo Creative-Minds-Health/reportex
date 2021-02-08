@@ -56,14 +56,17 @@ defmodule Xlsx.Report do
     :ok=:inet.setopts(sock,[{:active, :once}])
     [%{"$match" => query} | _] = data_decode["query"];
     {:ok, total} = Mongo.count(:mongo, record["collection"], query)
-    Logger.warning ["total #{inspect total}"]
-
     names = for item <- record["rows"],
       into: [],
       do: item["name"]
        Logger.warning ["names #{inspect names}"]
     {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names})
-    for _index <- 1..record["config"]["workers"],
+
+    n_workers = case round(total / record["config"] ["documents"]) < record["config"]["workers"] do
+      :true -> round(total / record["config"] ["documents"])
+      :false ->  record["config"]["workers"]
+    end
+    for _index <- 1..n_workers,
       {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => record["rows"], "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
       {:ok, date} = DateTime.now("America/Mexico_City"),
       Process.monitor(pid),
@@ -78,15 +81,16 @@ defmodule Xlsx.Report do
     GenServer.cast(from, :stop)
     {:noreply, state}
   end
-  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => _total, "skip" => _skip}=state) do
+  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip}=state) do
+    Logger.info ["total #{inspect total}, skip #{inspect skip}"]
     send(self(), {:run, page * documents})
     {:noreply, state}
   end
 
-  # def handle_info({:run, limit}, %{"total" => total, "skip" => skip}=state) when skip >= total do
-  #   Logger.warning "Se mandaron todos los registros"
-  #   {:noreply, state}
-  # end
+  def handle_info({:run, _limit}, %{"total" => total, "skip" => skip}=state) when skip >= total do
+    Logger.warning "Se mandaron todos los registros"
+    {:noreply, state}
+  end
 
   def handle_info({:run, limit}, %{"total" => total, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
     new_state = case Xlsx.XlsxMnesia.next_worker() do
@@ -115,13 +119,12 @@ defmodule Xlsx.Report do
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
-    # Logger.warning ["#{inspect pid} worker... deleted"]
+    Logger.warning ["#{inspect pid} worker... deleted"]
     {:atomic, :ok} = Xlsx.XlsxMnesia.delete(pid)
     case Xlsx.XlsxMnesia.empty_workers() do
       :true ->
         GenServer.cast(collector, :generate)
-      _ ->
-        []
+      _ -> []
     end
     {:noreply, state}
   end
