@@ -1,5 +1,6 @@
 defmodule Xlsx.Supervisor do
   use Supervisor
+  require Logger
 
   # API
   def start_link(opts) do
@@ -10,6 +11,7 @@ defmodule Xlsx.Supervisor do
   @impl true
   def init(args) do
     IO.puts "args: #{inspect args}"
+    js_path = :filename.join(:code.priv_dir(:xlsx), "lib/js")
     children = [
       %{
         id: Socket,
@@ -30,17 +32,27 @@ defmodule Xlsx.Supervisor do
           #   ciphers: ['AES256-GCM-SHA384'],
           #   versions: [:"tlsv1.2"]
           # ],
+          # seeds: ["minds-shard-00-03-airct.gcp.mongodb.net:27017"],
           queue_target: 5_000,
-          queue_interval: 10_000
+          queue_interval: 10_000,
+          # read_preference: Mongo.ReadPreference.slave_ok(%{mode: :secondary_preferred}),
+          # slave_ok: true
         ]]},
         restart: :permanent,
         shutdown: 2_000,
         type: :worker,
         modules: [Mongo]
+      },
+      %{
+        id: NodeJS,
+        start: {NodeJS, :start_link, [[path: js_path, pool_size: 4]]},
+        restart: :permanent,
+        shutdown: 2_000,
+        type: :worker,
+        modules: [NodeJS]
       }
     ]
     Supervisor.init(children, strategy: :one_for_one)
   end
-
   # Internal
 end
