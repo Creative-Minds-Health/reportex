@@ -58,9 +58,6 @@ defmodule Xlsx.SrsWeb.Worker do
     :ok
   end
 
-
-
-
   def iterate_fields(_item, []) do
     []
   end
@@ -69,7 +66,8 @@ defmodule Xlsx.SrsWeb.Worker do
     case get_value(item, h["field"] |> String.split("|"), h["field"], h["default_value"]) do
       {:multi, value} ->
         value ++ iterate_fields(item, t);
-      value -> [value | iterate_fields(item, t)]
+      value ->
+        [value | iterate_fields(item, t)]
     end
   end
 
@@ -78,27 +76,21 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   def get_value(item, [_h|_t], "patient|nationality|key", default_value) do
-    case Map.get(Map.get(item, "patient", %{}), "is_abroad", :undefined) do
-      1 ->
-        Map.get(item, "patient", %{}) |> Map.get("nationality", %{}) |> Map.get("key", "")
-      _ -> default_value
+    Xlsx.SrsWeb.ParserA.nationality(Map.get(Map.get(item, "patient", %{}), "is_abroad", 0), Map.get(item, "patient", %{}) |> Map.get("nationality", %{}) |> Map.get("key", ""), default_value)
 
-    end
   end
 
-  def get_value(item, [h|t], "patient|splited_age", default_value) do
+  def get_value(item, [_h|_t], "patient|splited_age", default_value) do
     splited_age = Map.get(item, "patient", %{}) |> Map.get("splited_age", %{})
     {:multi, Xlsx.SrsWeb.ParserA.age(Map.get(splited_age, "years", 0), Map.get(splited_age, "months", 0), Map.get(splited_age, "days", 0), default_value)}
   end
 
-  # def get_value(item, [h|t], "patient|was_born_hospital|key", default_value) do
-  #   splited_age = Map.get(item, "patient", %{}) |> Map.get("splited_age", %{})
-  #
-  #   Xlsx.SrsWeb.ParserA.was_born_hospital(Map.get(item, "patient", %{}) |> Map.get("was_born_hospital", %{}) |> Map.get("key", :undefined), Map.get(splited_age, "years", 0), Map.get(splited_age, "months", 0), default_value)
-  # end
+  def get_value(item, [_h|_t], "patient|dh", default_value) do
+    {:multi, Xlsx.SrsWeb.ParserA.dh(Map.get(item, "patient", %{}) |> Map.get("dh", []), default_value)}
+  end
 
-  def get_value(_item, [_h|_t], "patient|claveEdad", _default_value) do
-    ""
+  def get_value(item, [_h|_t], "stay|origin|unit_clue|key", default_value) do
+    Xlsx.SrsWeb.ParserA.clues(Map.get(item, "stay", %{}) |> Map.get("origin", %{}) |> Map.get("unit_clue", %{}) |> Map.get("key", :undefined), Map.get(item, "clue", :undefined), default_value)
   end
 
   def get_value(item, [h|t], field, default_value) do
@@ -107,13 +99,4 @@ defmodule Xlsx.SrsWeb.Worker do
       value -> get_value(value, t, field, default_value)
     end
   end
-
-  # def get_row_names([]) do
-  #   []
-  # end
-  #
-  # def get_row_names([h|t]) do
-  #   [[h["name"], bold: true, font: "Arial", size: 12]|get_row_names(t)]
-  # end
-
 end

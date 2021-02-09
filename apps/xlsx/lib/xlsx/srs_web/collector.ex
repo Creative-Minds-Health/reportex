@@ -20,13 +20,15 @@ defmodule Xlsx.SrsWeb.Collector do
 
   @impl true
   def handle_call({:concat, records}, _from, %{"rows" => rows}=state) do
-    # sheet = %Sheet{
-    #   name: "Resultados",
-    #   rows: rows ++ records
-    # }
-    # Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
-    # {:stop, :normal, Map.put(state, "rows", rows ++ records)}
-    {:reply, :ok, Map.put(state, "rows", rows ++ records)}
+    style_record = records
+    |> Stream.map(&(
+      for item <- &1,
+        into: [],
+        do: [item, font: "Arial", size: 12, align_horizontal: :left]
+    ))
+    |> Enum.to_list()
+
+    {:reply, :ok, Map.put(state, "rows", rows ++ style_record)}
   end
   def handle_call(_request, _from, state) do
     reply = :ok
