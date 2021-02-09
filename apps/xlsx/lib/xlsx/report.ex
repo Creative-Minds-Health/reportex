@@ -59,15 +59,10 @@ defmodule Xlsx.Report do
 
     names = for item <- record["rows"],
       into: [],
-<<<<<<< HEAD
-      do: [item["name"], bold: true, font: "Arial", size: 12]
-       #Logger.warning ["names #{inspect names}"]
-=======
       do: [item["name"], bold: true, font: "Arial", size: 12, border: [bottom: [style: :double, color: "#000000"], top: [style: :double, color: "#000000"], left: [style: :double, color: "#000000"], right: [style: :double, color: "#000000"]]]
 
     rows = for item <- record["rows"], item["special"] === :false, do: item
 
->>>>>>> dd7502854b11c74afd6d20db76c1f4be93727bc9
     {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names})
     n_workers = get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"])
     for _index <- 1..n_workers,
