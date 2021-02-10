@@ -43,10 +43,12 @@ function validateDoctorCurp(doctor) {
 
 }
 
-function validatePatientCurp(patient) {
-    patient = JSON.parse(patient)
-    if (!egress.patient.dateofbirth) egress.patient.dateofbirth = new Date(egress.patient.birthdate);
-    if (egress.patient.dateofbirth > egress.stay.admission_date) egress.patient.dateofbirth = egress.stay.admission_date;
+function validatePatientCurp(patient, stay) {
+    patient = JSON.parse(patient);
+    stay = JSON.parse(stay);
+
+    if (!patient.dateofbirth) patient.dateofbirth = new Date(patient.birthdate);
+    if (patient.dateofbirth > stay.admission_date) patient.dateofbirth = stay.admission_date;
 
     if(patient.curp === 'XXXX999999XXXXXX99') return;
 
@@ -110,5 +112,6 @@ function validatePatientCurp(patient) {
     } else {
         patient.curp = 'XXXX999999XXXXXX99';
     }
+    return {"curp" : patient.curp}
 
 }

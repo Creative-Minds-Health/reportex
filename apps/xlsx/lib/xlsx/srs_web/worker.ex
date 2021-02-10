@@ -40,7 +40,6 @@ defmodule Xlsx.SrsWeb.Worker do
       ))
       |> Enum.to_list()
     {:ok, _date2} = DateTime.now("America/Mexico_City")
-    Logger.info ["records #{inspect records}"]
     :ok = GenServer.call(collector, {:concat, records})
     :ok = GenServer.call(parent, :waiting_status)
     send(parent, {:run_by_worker, self()})
@@ -103,6 +102,13 @@ defmodule Xlsx.SrsWeb.Worker do
 
   def get_value(item, [_h|_t], "product", _default_value) do
     {:multi, Xlsx.SrsWeb.ParserA.product(Map.get(item, "product", []))}
+  end
+
+  def get_value(item, [h|t], "patient|curp", default_value) do
+    {:ok, patient} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["patient"]))
+    {:ok, stay} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["stay"]))
+    {:ok, response} = NodeJS.call({"modules/simba/bulk-load/egress/egress.helper.js", :validatePatientCurp}, [patient, stay])
+    response["curp"]
   end
 
   def get_value(item, [h|t], field, default_value) do
