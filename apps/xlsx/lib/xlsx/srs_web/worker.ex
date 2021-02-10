@@ -112,14 +112,22 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   def get_value(item, [_h|_t], "stay|admission_date", _default_value) do
-    {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(item["stay"]["admission_date"])})
-    {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
-    response["date"]
+    case Map.get(item, "stay", %{}) |> Map.get("admission_date", :undefined) do
+      :undefined -> ""
+      date ->
+        {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(date)})
+        {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
+        response["date"]
+    end
   end
   def get_value(item, [_h|_t], "stay|exit_date", _default_value) do
-    {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(item["stay"]["exit_date"])})
-    {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
-    response["date"]
+    case Map.get(item, "stay", %{}) |> Map.get("exit_date", :undefined) do
+      :undefined -> ""
+      date ->
+        {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(date)})
+        {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
+        response["date"]
+    end
   end
 
   def get_value(item, [h|t], field, default_value) do

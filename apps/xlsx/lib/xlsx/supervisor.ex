@@ -45,7 +45,7 @@ defmodule Xlsx.Supervisor do
       },
       %{
         id: NodeJS,
-        start: {NodeJS, :start_link, [[path: js_path, pool_size: 4]]},
+        start: {NodeJS, :start_link, [[path: js_path, pool_size: 10]]},
         restart: :permanent,
         shutdown: 2_000,
         type: :worker,
