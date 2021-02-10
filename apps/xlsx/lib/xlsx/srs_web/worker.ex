@@ -104,6 +104,10 @@ defmodule Xlsx.SrsWeb.Worker do
     {:multi, Xlsx.SrsWeb.ParserA.product(Map.get(item, "product", []))}
   end
 
+  def get_value(item, [_h|_t], "stay|additional_service", _default_value) do
+    {:multi, Xlsx.SrsWeb.ParserA.additional_service(Map.get(item, "stay", %{}) |> Map.get("additional_service", []))}
+  end
+
   def get_value(item, [_h|_t], "patient|curp", _default_value) do
     {:ok, patient} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["patient"]))
     {:ok, stay} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["stay"]))
