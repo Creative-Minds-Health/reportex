@@ -63,8 +63,8 @@ defmodule Xlsx.Report do
 
     rows = for item <- record["rows"], item["special"] === :false, do: item
 
-    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names})
-    {:ok, progress} = Xlsx.SrsWeb.Progress.start(%{"parent" => self(), "total" => total, "documents" => record["config"]["documents"], "collectos" => collector})
+    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names, "period" => query["stay.exit_date"]})
+    #{:ok, progress} = Xlsx.SrsWeb.Progress.start(%{"parent" => self(), "total" => total, "documents" => record["config"]["documents"], "collectos" => collector})
     n_workers = get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"])
     for _index <- 1..n_workers,
       {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => rows, "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
