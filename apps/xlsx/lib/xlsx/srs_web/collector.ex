@@ -40,8 +40,13 @@ defmodule Xlsx.SrsWeb.Collector do
     Logger.info "Generate..."
     sheet = %Sheet{
       name: "Resultados",
-      rows: [columns] ++ rows
-    } |> Sheet.set_col_width("A", 17.0)
+      rows: [[], [], [], []] ++[columns] ++ rows,
+      merge_cells: [{"A1", "D3"},{"E2", "T2"}, {"G3", "I3"}]
+    }
+    # |> Sheet.set_cell("A1", "Imagen", font: "Arial", size: 12, align_horizontal: :center, align_vertical: :center)
+    |> Sheet.set_cell("E2", "Reporte de egresos", bold: true, font: "Arial", size: 19, align_horizontal: :center, align_vertical: :center)
+    |> Sheet.set_cell("F3", "Periodo:", bold: true, font: "Arial", size: 12, align_horizontal: :left)
+    |> Sheet.set_col_width("A", 17.0)
     |> Sheet.set_col_width("B", 20.0)
     |> Sheet.set_col_width("C", 17.0)
     |> Sheet.set_col_width("D", 17.0)
@@ -53,7 +58,10 @@ defmodule Xlsx.SrsWeb.Collector do
     |> Sheet.set_col_width("J", 14.0)
     |> Sheet.set_col_width("K", 14.0)
     |> Sheet.set_col_width("L", 14.0)
-    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("egresses.xlsx")
+
+
+    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("Reporte_egresos_" <> get_date_now() <> ".xlsx")
+
     Logger.info "Finish..."
     {:noreply, :ok, Map.put(state, "rows", rows)}
   end
@@ -74,5 +82,19 @@ defmodule Xlsx.SrsWeb.Collector do
   def terminate(_reason, _state) do
     Logger.warning ["#{inspect self()}... terminate"]
     :ok
+  end
+
+  def get_date_now() do
+    today = DateTime.utc_now
+    [today.year, today.month, today.day]
+    Enum.join [get_number(today.day), get_number(today.month), today.year], "-"
+  end
+
+  def get_number(number) when number < 10 do
+    "0" <> Integer.to_string(number);
+  end
+
+  def get_number(number) do
+    number;
   end
 end
