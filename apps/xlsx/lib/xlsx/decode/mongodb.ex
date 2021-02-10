@@ -1,6 +1,9 @@
 defmodule Xlsx.Decode.Mongodb do
   require Logger
 
+  def decode(:nil) do
+    %{}
+  end
   def decode([]) do
     []
   end
