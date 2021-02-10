@@ -93,6 +93,18 @@ defmodule Xlsx.SrsWeb.Worker do
     Xlsx.SrsWeb.ParserA.clues(Map.get(item, "stay", %{}) |> Map.get("origin", %{}) |> Map.get("unit_clue", %{}) |> Map.get("key", :undefined), Map.get(item, "clue", :undefined), default_value)
   end
 
+  def get_value(item, [_h|_t], "comorbidity|comorbidities", _default_value) do
+    {:multi, Xlsx.SrsWeb.ParserA.comorbidities(Map.get(item, "comorbidity", :undefined), Map.get(item, "comorbidity", %{}) |> Map.get("comorbidities", []))}
+  end
+
+  def get_value(item, [_h|_t], "procedures", _default_value) do
+    {:multi, Xlsx.SrsWeb.ParserA.procedures(Map.get(item, "procedures", []))}
+  end
+
+  def get_value(item, [_h|_t], "product", _default_value) do
+    {:multi, Xlsx.SrsWeb.ParserA.product(Map.get(item, "product", []))}
+  end
+
   def get_value(item, [h|t], field, default_value) do
     case Map.get(item, h, :undefined) do
       :undefined -> default_value
