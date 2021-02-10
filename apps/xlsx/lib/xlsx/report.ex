@@ -51,7 +51,7 @@ defmodule Xlsx.Report do
   end
 
   def handle_info({:tcp, _socket, data}, %{"socket" => sock, "page" => page}=state) do
-    data_decode = Poison.decode!(data)
+    data_decode = Poison.decode!(data) |> Xlsx.Decode.Query.decode()
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
     :ok=:inet.setopts(sock,[{:active, :once}])
     [%{"$match" => query} | _] = data_decode["query"];
