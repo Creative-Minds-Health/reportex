@@ -15,12 +15,14 @@ function joinTitles(titles) {
 }
 
 function sinbaDate(date) {
+    date = JSON.parse(date)
+    date = date.date;
     if(!(date instanceof Date)) date = new Date(date);
     var sDate = new Date(date.getTime());
     sDate.setMinutes(sDate.getMinutes() + sDate.getTimezoneOffset());
     var month = sDate.getMonth() +1;
     var day = sDate.getDate();
-    return ((day < 10 ? '0' : '') + day) + "/" + ((month < 10 ? '0' : '') + month) + "/" + sDate.getFullYear();
+    return {"date" : ((day < 10 ? '0' : '') + day) + "/" + ((month < 10 ? '0' : '') + month) + "/" + sDate.getFullYear()}
 }
 
 function toInt(data,arrayPath) {

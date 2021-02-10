@@ -111,8 +111,19 @@ defmodule Xlsx.SrsWeb.Worker do
   def get_value(item, [_h|_t], "patient|curp", _default_value) do
     {:ok, patient} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["patient"]))
     {:ok, stay} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["stay"]))
-    {:ok, response} = NodeJS.call({"modules/simba/bulk-load/egress/egress.helper.js", :validatePatientCurp}, [patient, stay])
+    {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/egress/egress.helper.js", :validatePatientCurp}, [patient, stay])
     response["curp"]
+  end
+
+  def get_value(item, [_h|_t], "stay|admission_date", _default_value) do
+    {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(item["stay"]["admission_date"])})
+    {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
+    response["date"]
+  end
+  def get_value(item, [_h|_t], "stay|exit_date", _default_value) do
+    {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(item["stay"]["exit_date"])})
+    {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
+    response["date"]
   end
 
   def get_value(item, [h|t], field, default_value) do
