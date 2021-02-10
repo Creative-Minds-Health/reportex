@@ -36,7 +36,7 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "period" => period}=state) do
+  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "period" => period, "parent" => parent}=state) do
     Logger.info "Generate..."
     sheet = %Sheet{
       name: "Resultados",
@@ -60,7 +60,7 @@ defmodule Xlsx.SrsWeb.Collector do
     |> Sheet.set_col_width("K", 14.0)
     |> Sheet.set_col_width("L", 14.0)
 
-    file_name = "Reporte_egresos_" <> get_date_now() <> ".xlsx"
+    file_name = "Reporte_egresos_" <> get_date_now(:undefined, "-") <> ".xlsx"
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("Reporte_egresos_" <> get_date_now(:undefined, "-") <> ".xlsx")
 
     Logger.info "Finish..."
