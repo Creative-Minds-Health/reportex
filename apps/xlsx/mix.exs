@@ -32,7 +32,8 @@ defmodule Xlsx.MixProject do
       {:mongodb_driver, "~> 0.6"},
       {:tzdata, "~> 1.1"},
       {:elixlsx, "~> 0.4.2"},
-      {:poison, "~> 3.1"}
+      {:poison, "~> 3.1"},
+      {:nodejs, "~> 2.0"}
     ]
   end
 end
