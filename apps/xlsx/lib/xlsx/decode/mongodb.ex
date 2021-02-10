@@ -8,7 +8,6 @@ defmodule Xlsx.Decode.Mongodb do
     [priv_decode({map, %{}}, Map.keys(map)) | decode(t)]
   end
   def decode(map) when is_map(map) do
-    Logger.info ["Entra ajlkajklasjklajkl #{inspect map}"]
     priv_decode({map, %{}}, Map.keys(map))
   end
 
