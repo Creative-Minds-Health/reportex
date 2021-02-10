@@ -13,7 +13,11 @@ defmodule Xlsx.Application do
       # {Xlsx.Worker, arg}
       Xlsx.Supervisor
     ]
-    :ok = Xlsx.XlsxMnesia.init()
+    :stopped = :mnesia.stop()
+    :ok = :mnesia.delete_schema([node()])
+    :mnesia.create_schema([node()])
+    :ok = :mnesia.start()
+    :ok = Xlsx.Mnesia.Worker.init()
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Xlsx.Supervisor]

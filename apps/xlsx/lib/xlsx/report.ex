@@ -18,7 +18,7 @@ defmodule Xlsx.Report do
 
   @impl true
   def handle_call(:waiting_status, {from, _}, state) do
-    :ok = Xlsx.XlsxMnesia.update_status(from, {:occupied, :waiting})
+    :ok = Xlsx.Mnesia.Worker.update_status(from, {:occupied, :waiting})
     {:reply, :ok, state}
   end
 
@@ -69,7 +69,7 @@ defmodule Xlsx.Report do
       {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => rows, "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
       {:ok, date} = DateTime.now("America/Mexico_City"),
       Process.monitor(pid),
-      :ok = Xlsx.XlsxMnesia.dirty_write(pid, :waiting, date),
+      :ok = Xlsx.Mnesia.Worker.dirty_write(pid, :waiting, date),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
     send(self(), {:run, page * record["config"]["documents"]})
@@ -92,11 +92,11 @@ defmodule Xlsx.Report do
   end
 
   def handle_info({:run, limit}, %{"total" => total, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
-    new_state = case Xlsx.XlsxMnesia.next_worker() do
+    new_state = case Xlsx.Mnesia.Worker.next_worker() do
       {:ok, pid} ->
         send(pid, {:run, skip, limit, documents})
         send(self(), {:run, (page + 1) * documents})
-        :ok = Xlsx.XlsxMnesia.update_status(pid, {:waiting, :occupied})
+        :ok = Xlsx.Mnesia.Worker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
       _ ->
         state
@@ -104,12 +104,12 @@ defmodule Xlsx.Report do
     {:noreply, new_state}
   end
   def handle_info({:run, limit}, %{"page" => page, "total" => total, "skip" => skip, "documents" => _documents}=state)  when limit > total do
-    new_state = case Xlsx.XlsxMnesia.next_worker() do
+    new_state = case Xlsx.Mnesia.Worker.next_worker() do
       {:ok, pid} ->
         # Logger.warning ["page #{page}, skip #{inspect skip}, limit #{inspect limit}, documents #{inspect documents}"]
         send(pid, {:run, skip, total, (total - skip)})
         send(self(), {:run, total})
-        :ok = Xlsx.XlsxMnesia.update_status(pid, {:waiting, :occupied})
+        :ok = Xlsx.Mnesia.Worker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
       _ ->
         state
@@ -119,8 +119,8 @@ defmodule Xlsx.Report do
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     Logger.warning ["#{inspect pid} worker... deleted"]
-    {:atomic, :ok} = Xlsx.XlsxMnesia.delete(pid)
-    case Xlsx.XlsxMnesia.empty_workers() do
+    {:atomic, :ok} = Xlsx.Mnesia.Worker.delete(pid)
+    case Xlsx.Mnesia.Worker.empty_workers() do
       :true ->
         GenServer.cast(collector, :generate)
       _ -> []
@@ -143,13 +143,13 @@ defmodule Xlsx.Report do
     :ok
   end
 
-  def get_n_workers(0, round_total, config_workers) do
+  def get_n_workers(0, _round_total, _config_workers) do
     Logger.info ["Error en total"]
   end
   def get_n_workers(total, 0, config_workers) do
     get_n_workers(total, 1, config_workers)
   end
-  def get_n_workers(total, round_total, config_workers) do
+  def get_n_workers(_total, round_total, config_workers) do
     case round_total < config_workers do
       :true -> round_total
       :false ->  config_workers

@@ -1,12 +1,8 @@
-defmodule Xlsx.XlsxMnesia do
+defmodule Xlsx.Mnesia.Worker do
   require Logger
   alias :mnesia, as: Mnesia
 
   def init() do
-    :stopped = :mnesia.stop()
-    :ok = :mnesia.delete_schema([node()])
-    :mnesia.create_schema([node()])
-    :ok = :mnesia.start()
     {:atomic, :ok} = Mnesia.create_table(XlsxWorker, [attributes: [:pid, :status, :date]])
     :ok
   end
