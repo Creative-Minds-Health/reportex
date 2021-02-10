@@ -36,7 +36,7 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"rows" => rows, "columns" => columns}=state) do
+  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "period" => period}=state) do
     Logger.info "Generate..."
     sheet = %Sheet{
       name: "Resultados",
@@ -46,6 +46,7 @@ defmodule Xlsx.SrsWeb.Collector do
     # |> Sheet.set_cell("A1", "Imagen", font: "Arial", size: 12, align_horizontal: :center, align_vertical: :center)
     |> Sheet.set_cell("E2", "Reporte de egresos", bold: true, font: "Arial", size: 19, align_horizontal: :center, align_vertical: :center)
     |> Sheet.set_cell("F3", "Periodo:", bold: true, font: "Arial", size: 12, align_horizontal: :left)
+    |> Sheet.set_cell("G3", get_date_now(period["$gte"], "/") <> " - " <> get_date_now(period["$lte"], "/"), font: "Arial", size: 12, align_horizontal: :left)
     |> Sheet.set_col_width("A", 17.0)
     |> Sheet.set_col_width("B", 20.0)
     |> Sheet.set_col_width("C", 17.0)
@@ -60,7 +61,7 @@ defmodule Xlsx.SrsWeb.Collector do
     |> Sheet.set_col_width("L", 14.0)
 
 
-    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("Reporte_egresos_" <> get_date_now() <> ".xlsx")
+    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("Reporte_egresos_" <> get_date_now(:undefined, "-") <> ".xlsx")
 
     Logger.info "Finish..."
     {:noreply, :ok, Map.put(state, "rows", rows)}
@@ -84,10 +85,15 @@ defmodule Xlsx.SrsWeb.Collector do
     :ok
   end
 
-  def get_date_now() do
+  def get_date_now(:undefined, separator) do
     today = DateTime.utc_now
     [today.year, today.month, today.day]
-    Enum.join [get_number(today.day), get_number(today.month), today.year], "-"
+    Enum.join [get_number(today.day), get_number(today.month), today.year], separator
+  end
+
+  def get_date_now(date, separator) do
+    [date.year, date.month, date.day]
+    Enum.join [get_number(date.day), get_number(date.month), date.year], separator
   end
 
   def get_number(number) when number < 10 do
