@@ -91,6 +91,16 @@ defmodule Xlsx.SrsWeb.ParserA do
     ]
   end
 
+  def additional_service([]) do
+    ["-1","-1"]
+  end
+  def additional_service(additional_service_list) do
+    [
+      get_value_pipe(additional_service_list, "key", :undefined, "-1"),
+      get_value_pipe(additional_service_list, "number", :undefined, "-1")
+    ]
+  end
+
   ####UTILERIAS####
   def get_dh(dh, default_value) do
     [Map.get(dh, "key", default_value), Map.get(dh, "is_gratuity", "-1"), Map.get(dh, "insurance_policy", ""), Map.get(dh, "check_digit", "")]
