@@ -119,18 +119,14 @@ defmodule Xlsx.SrsWeb.Worker do
     case Map.get(item, "stay", %{}) |> Map.get("admission_date", :undefined) do
       :undefined -> ""
       date ->
-        {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(date)})
-        {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
-        response["date"]
+        sinba_date(date)
     end
   end
   def get_value(item, [_h|_t], "stay|exit_date", _default_value) do
     case Map.get(item, "stay", %{}) |> Map.get("exit_date", :undefined) do
       :undefined -> ""
       date ->
-        {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(date)})
-        {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
-        response["date"]
+        sinba_date(date)
     end
   end
 
@@ -139,5 +135,11 @@ defmodule Xlsx.SrsWeb.Worker do
       :undefined -> default_value
       value -> get_value(value, t, field, default_value)
     end
+  end
+
+  def sinba_date(date) do
+    {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(date)})
+    {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
+    response["date"]
   end
 end
