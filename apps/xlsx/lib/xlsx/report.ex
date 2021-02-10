@@ -50,7 +50,7 @@ defmodule Xlsx.Report do
     {:noreply, state}
   end
 
-  def handle_info({:tcp, _socket, data}, %{"socket" => sock, "page" => page}=state) do
+  def handle_info({:tcp, socket, data}, %{"socket" => sock, "page" => page}=state) do
     data_decode = Poison.decode!(data) |> Xlsx.Decode.Query.decode()
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
     :ok=:inet.setopts(sock,[{:active, :once}])
@@ -64,6 +64,7 @@ defmodule Xlsx.Report do
     rows = for item <- record["rows"], item["special"] === :false, do: item
 
     {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names})
+    {:ok, progress} = Xlsx.SrsWeb.Progress.start(%{"parent" => self(), "total" => total, "documents" => record["config"]["documents"], "collectos" => collector})
     n_workers = get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"])
     for _index <- 1..n_workers,
       {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => rows, "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
@@ -73,16 +74,28 @@ defmodule Xlsx.Report do
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
     send(self(), {:run, page * record["config"]["documents"]})
+    :gen_tcp.send(socket, "generando...")
     {:noreply, Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
   end
+
+  def handle_info({:finish, msg}, %{"socket" => socket}=state) do
+    {:ok, response} = Poison.encode(%{"archivo" => msg})
+    :gen_tcp.send(socket, response)
+    {:noreply, state}
+  end
+
 
   def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip}=state) when skip >= total do
     GenServer.cast(from, :stop)
     {:noreply, state}
   end
-  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip}=state) do
-    Logger.info ["total #{inspect total}, skip #{inspect skip}"]
+  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip, "socket" => socket}=state) do
+    Logger.info [" [#{inspect skip} - #{inspect total}]"]
+    msg = Integer.to_string(skip) <> "-" <> Integer.to_string(total)
+    {:ok, response} = Poison.encode(%{"progreso..." => msg})
     send(self(), {:run, page * documents})
+    #Logger.info ["#{inspect response}"]
+    :gen_tcp.send(socket, response)
     {:noreply, state}
   end
 
