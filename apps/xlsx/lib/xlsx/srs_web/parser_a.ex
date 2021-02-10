@@ -48,8 +48,60 @@ defmodule Xlsx.SrsWeb.ParserA do
     default_value
   end
 
+  def comorbidities(_comorbidity, []) do
+    ["","",""]
+  end
+  def comorbidities(:undefined, _comorbidities_list) do
+    ["","",""]
+  end
+  def comorbidities(_comorbidity, comorbidities_list) do
+    [
+      get_value_pipe(comorbidities_list, "number", :undefined, ""), get_value_pipe(comorbidities_list, "description", :undefined, ""), get_value_pipe(comorbidities_list, "diagnosis", "key_diagnosis", "")
+    ]
+  end
 
+  def procedures([]) do
+    ["","","","","","",""]
+  end
+  def procedures(procedures_list) do
+    [
+      get_value_pipe(procedures_list, "number", :undefined, "0"),
+      get_value_pipe(procedures_list, "description", :undefined, ""),
+      get_value_pipe(procedures_list, "diagnosis", "key_diagnosis", ""),
+      get_value_pipe(procedures_list, "anesthesia_type", "key", "-1"),
+      get_value_pipe(procedures_list, "quirofano_inside_outside", :undefined, ""),
+      get_value_pipe(procedures_list, "operating_room_time", :undefined, ""),
+      get_value_pipe(procedures_list, "professional_cedule", :undefined, "0")
+    ]
+  end
+
+  def product([]) do
+    ["0","-1","-1","","","-1","-1", "-1"]
+  end
+  def product(product_list) do
+    [
+      get_value_pipe(product_list, "number", :undefined, "0"),
+      get_value_pipe(product_list, "birth_condition", "key", "-1"),
+      get_value_pipe(product_list, "live_born_condition", "key", "-1"),
+      get_value_pipe(product_list, "folio_certificate", :undefined, ""),
+      get_value_pipe(product_list, "pay_5_minutes", :undefined, ""),
+      get_value_pipe(product_list, "neonatal_resuscitation", :undefined, "-1"),
+      get_value_pipe(product_list, "accommodation_set", :undefined, "-1"),
+      get_value_pipe(product_list, "exclusive_breastfeeding", :undefined, "-1")
+    ]
+  end
+
+  ####UTILERIAS####
   def get_dh(dh, default_value) do
     [Map.get(dh, "key", default_value), Map.get(dh, "is_gratuity", "-1"), Map.get(dh, "insurance_policy", ""), Map.get(dh, "check_digit", "")]
+  end
+
+  def get_value_pipe(comorbidities_list, value, :undefined, default_value) do
+    list = for item <- comorbidities_list, do: Map.get(item, value, default_value)
+    Enum.join(list, " | ")
+  end
+  def get_value_pipe(comorbidities_list, value, second, default_value) do
+    list = for item <- comorbidities_list, do: Map.get(item, value, %{}) |> Map.get(second, default_value)
+    Enum.join(list, " | ")
   end
 end
