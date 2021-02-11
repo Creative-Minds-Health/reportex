@@ -40,7 +40,7 @@ defmodule Xlsx.SrsWeb.Worker do
       ))
       |> Enum.to_list()
     {:ok, _date2} = DateTime.now("America/Mexico_City")
-    :ok = GenServer.call(collector, {:concat, records})
+    :ok = GenServer.call(collector, {:concat, records, documents})
     :ok = GenServer.call(parent, :waiting_status)
     # Logger.info ["progreso... #{inspect skip}"]
     send(parent, {:run_by_worker, self()})
@@ -110,10 +110,10 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   def get_value(item, [_h|_t], "patient|curp", _default_value) do
-    {:ok, patient} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["patient"]))
-    {:ok, stay} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["stay"]))
-    {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/egress/egress.helper.js", :validatePatientCurp}, [patient, stay])
-    response["curp"]
+    #{:ok, patient} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["patient"]))
+    #{:ok, stay} = Poison.encode(Xlsx.Decode.Mongodb.decode(item["stay"]))
+    #{:ok, response} = NodeJS.call({"modules/sinba/bulk-load/egress/egress.helper.js", :validatePatientCurp}, [patient, stay])
+    item["patient"]["curp"]
   end
 
   def get_value(item, [_h|_t], "stay|admission_date", _default_value) do
@@ -139,8 +139,9 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   def sinba_date(date) do
-    {:ok, json} = Poison.encode(%{"date" => DateTime.to_string(date)})
-    {:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
-    response["date"]
+    #{:ok, json} = Poison.encode(%{"date" => DateTime.to_string(date)})
+    #{:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
+    # response["date"]
+    DateTime.to_string(date)
   end
 end

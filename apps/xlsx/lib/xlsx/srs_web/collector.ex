@@ -19,7 +19,7 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
-  def handle_call({:concat, records}, _from, %{"rows" => rows}=state) do
+  def handle_call({:concat, records, documents}, _from, %{"rows" => rows, "progress" => progress}=state) do
     style_record = records
     |> Stream.map(&(
       for item <- &1,
@@ -27,7 +27,7 @@ defmodule Xlsx.SrsWeb.Collector do
         do: [item, font: "Arial", size: 12, align_horizontal: :left]
     ))
     |> Enum.to_list()
-
+    send(progress, {:documents, documents})
     {:reply, :ok, Map.put(state, "rows", rows ++ style_record)}
   end
   def handle_call(_request, _from, state) do
@@ -36,8 +36,9 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "period" => period, "parent" => parent}=state) do
+  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "period" => period, "parent" => parent, "progress" => progress}=state) do
     Logger.info "Generate..."
+    send(progress, {:update_status, :writing})
     sheet = %Sheet{
       name: "Resultados",
       rows: [[], [], [], []] ++[columns] ++ rows,
@@ -61,10 +62,10 @@ defmodule Xlsx.SrsWeb.Collector do
     |> Sheet.set_col_width("L", 14.0)
 
     file_name = "Reporte_egresos_" <> get_date_now(:undefined, "-") <> ".xlsx"
-    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to("Reporte_egresos_" <> get_date_now(:undefined, "-") <> ".xlsx")
+    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(file_name)
 
     Logger.info "Finish..."
-    send(parent, {:finish, file_name})
+    send(progress, {:done, file_name})
     {:noreply, :ok, Map.put(state, "rows", rows)}
   end
   def handle_cast(:stop, state) do

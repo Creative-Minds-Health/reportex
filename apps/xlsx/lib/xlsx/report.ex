@@ -52,19 +52,18 @@ defmodule Xlsx.Report do
 
   def handle_info({:tcp, socket, data}, %{"socket" => sock, "page" => page}=state) do
     data_decode = Poison.decode!(data) |> Xlsx.Decode.Query.decode()
+    {:ok, progress} = Xlsx.SrsWeb.Progress.start(%{"parent" => self(), "status" => :waiting, "socket" => socket, "total" => 0, "documents" => 0})
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
     :ok=:inet.setopts(sock,[{:active, :once}])
     [%{"$match" => query} | _] = data_decode["query"];
     {:ok, total} = Mongo.count(:mongo, record["collection"], query)
-
+    send(progress, {:update_total, total})
     names = for item <- record["rows"],
       into: [],
       do: [item["name"], bold: true, font: "Arial", size: 12, border: [bottom: [style: :double, color: "#000000"], top: [style: :double, color: "#000000"], left: [style: :double, color: "#000000"], right: [style: :double, color: "#000000"]]]
-
     rows = for item <- record["rows"], item["special"] === :false, do: item
 
-    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names, "period" => query["stay.exit_date"]})
-    #{:ok, progress} = Xlsx.SrsWeb.Progress.start(%{"parent" => self(), "total" => total, "documents" => record["config"]["documents"], "collectos" => collector})
+    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names, "period" => query["stay.exit_date"], "progress" => progress})
     n_workers = get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"])
     for _index <- 1..n_workers,
       {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => rows, "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
@@ -75,13 +74,8 @@ defmodule Xlsx.Report do
       do: {pid, %{"date" => date, "status" => :waiting}}
     send(self(), {:run, page * record["config"]["documents"]})
     :gen_tcp.send(socket, "generando...")
+    Logger.info ["jkaklsjkldjaklsjdklasjkljkljkljkl"]
     {:noreply, Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
-  end
-
-  def handle_info({:finish, msg}, %{"socket" => socket}=state) do
-    {:ok, response} = Poison.encode(%{"archivo" => msg})
-    :gen_tcp.send(socket, response)
-    {:noreply, state}
   end
 
 
@@ -90,12 +84,11 @@ defmodule Xlsx.Report do
     {:noreply, state}
   end
   def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip, "socket" => socket}=state) do
-    Logger.info [" [#{inspect skip} - #{inspect total}]"]
     msg = Integer.to_string(skip) <> "-" <> Integer.to_string(total)
     {:ok, response} = Poison.encode(%{"progreso..." => msg})
     send(self(), {:run, page * documents})
     #Logger.info ["#{inspect response}"]
-    :gen_tcp.send(socket, response)
+    #:gen_tcp.send(socket, response)
     {:noreply, state}
   end
 

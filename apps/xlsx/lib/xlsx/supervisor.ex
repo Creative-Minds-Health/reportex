@@ -32,7 +32,6 @@ defmodule Xlsx.Supervisor do
           #   ciphers: ['AES256-GCM-SHA384'],
           #   versions: [:"tlsv1.2"]
           # ],
-          # seeds: ["minds-shard-00-03-airct.gcp.mongodb.net:27017"],
           queue_target: 5_000,
           queue_interval: 10_000,
           # read_preference: Mongo.ReadPreference.slave_ok(%{mode: :secondary_preferred}),
