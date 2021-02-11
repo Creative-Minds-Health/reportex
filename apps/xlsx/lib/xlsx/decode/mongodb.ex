@@ -16,7 +16,6 @@ defmodule Xlsx.Decode.Mongodb do
 
 
 
-
   defp priv_decode({_map, acc}, []) do
     acc
   end

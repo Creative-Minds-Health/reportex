@@ -14,7 +14,6 @@ defmodule Xlsx.SrsWeb.Collector do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    Logger.info "Collector is running..."
     {:ok, state}
   end
 

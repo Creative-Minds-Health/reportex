@@ -12,7 +12,6 @@ defmodule Xlsx.SrsWeb.Progress do
   def init(state) do
     Process.flag(:trap_exit, true)
     report_config = Application.get_env(:xlsx, :report)
-    Logger.info ["entrta kla ini"]
     #{:ok, state}
     {:ok, Map.put(state, :progress_timeout, report_config[:progress_timeout]), report_config[:progress_timeout]}
   end
@@ -32,22 +31,21 @@ defmodule Xlsx.SrsWeb.Progress do
 
 
   @impl true
-  def handle_info({:done , file_name}, %{:progress_timeout => progress_timeout, "socket" => socket}=state) do
+  def handle_info({:done , file_name}, %{:progress_timeout => progress_timeout, "res_socket" => res_socket}=state) do
     {:ok, response} = Poison.encode(%{"url" => file_name})
-    :gen_tcp.send(socket, response)
+    :gen_tcp.send(res_socket, response)
     {:noreply, Map.put(state, "status", :done)}
   end
   def handle_info({:update_status, status}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
   def handle_info({:documents, new_documents}, %{:progress_timeout => progress_timeout, "documents" => documents}=state) do
-    Logger.info ["#{inspect new_documents + documents}"]
     {:noreply, Map.put(state, "documents", new_documents + documents), 500}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "total", total) |> Map.put("status", :working), progress_timeout}
   end
-  def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "socket" => socket, "documents" => documents, "total" => total}=state) do
+  def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total}=state) do
     map = case status do
       :waiting -> %{"message" => "Calculando progreso"}
       :working -> %{"message" => "Progreso " <> Integer.to_string(documents) <> " de " <> Integer.to_string(total), "Porcentaje" => trunc((documents * 100) / total)}
@@ -55,7 +53,8 @@ defmodule Xlsx.SrsWeb.Progress do
       _-> %{}
     end
     {:ok, response} = Poison.encode(Map.put(map, "total", total))
-    :gen_tcp.send(socket, response)
+    Logger.info ["#{inspect response}"]
+    :gen_tcp.send(res_socket, response)
     {:noreply, state, progress_timeout}
   end
   def handle_info(_msg, state) do
