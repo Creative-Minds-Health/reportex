@@ -51,31 +51,43 @@ defmodule Xlsx.Report do
   end
 
   def handle_info({:tcp, socket, data}, %{"socket" => sock, "page" => page}=state) do
-    data_decode = Poison.decode!(data) |> Xlsx.Decode.Query.decode()
-    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
-    :ok=:inet.setopts(sock,[{:active, :once}])
-    [%{"$match" => query} | _] = data_decode["query"];
-    {:ok, total} = Mongo.count(:mongo, record["collection"], query)
+    {:ok, date} = DateTime.now("America/Mexico_City")
 
-    names = for item <- record["rows"],
-      into: [],
-      do: [item["name"], bold: true, font: "Arial", size: 12, border: [bottom: [style: :double, color: "#000000"], top: [style: :double, color: "#000000"], left: [style: :double, color: "#000000"], right: [style: :double, color: "#000000"]]]
+    case Xlsx.Mnesia.Socket.empty_sockets() do
+      :true ->
+        save_socket(socket, data, 1, date);
 
-    rows = for item <- record["rows"], item["special"] === :false, do: item
+        data_decode = Poison.decode!(data) |> Xlsx.Decode.Query.decode()
+        [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]})
+        |> Enum.to_list()
 
-    {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => names, "period" => query["stay.exit_date"]})
-    #{:ok, progress} = Xlsx.SrsWeb.Progress.start(%{"parent" => self(), "total" => total, "documents" => record["config"]["documents"], "collectos" => collector})
-    n_workers = get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"])
-    for _index <- 1..n_workers,
-      {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => rows, "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
-      {:ok, date} = DateTime.now("America/Mexico_City"),
-      Process.monitor(pid),
-      :ok = Xlsx.Mnesia.Worker.dirty_write(pid, :waiting, date),
-      into: %{},
-      do: {pid, %{"date" => date, "status" => :waiting}}
-    send(self(), {:run, page * record["config"]["documents"]})
-    :gen_tcp.send(socket, "generando...")
-    {:noreply, Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
+        :ok=:inet.setopts(sock,[{:active, :once}])
+
+        [%{"$match" => query} | _] = data_decode["query"];
+        {:ok, total} = Mongo.count(:mongo, record["collection"], query)
+
+        {:ok, collector} = Xlsx.SrsWeb.Collector.start(%{"parent" => self(), "rows" => [], "columns" => get_name_columns(record["rows"]), "period" => query["stay.exit_date"]})
+
+        #{:ok, progress} = Xlsx.SrsWeb.Progress.start(%{"parent" => self(), "total" => total, "documents" => record["config"]["documents"], "collectos" => collector})
+        n_workers = get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"])
+
+        for _index <- 1..n_workers,
+          {:ok, pid} = Xlsx.SrsWeb.Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data_decode["query"], "collector" => collector, "collection" => record["collection"]}),
+
+          Process.monitor(pid),
+          :ok = Xlsx.Mnesia.Worker.dirty_write(pid, :waiting, date),
+
+          into: %{},
+          do: {pid, %{"date" => date, "status" => :waiting}}
+        send(self(), {:run, page * record["config"]["documents"]})
+        :gen_tcp.send(socket, "generando...")
+
+        {:noreply, Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector) |> Map.put("socket", socket)}
+      turn ->
+       save_socket(socket, data, turn, date);
+       # creo que aquí debo empezar a ejecutar la funcion que mande el progreso de turno a los sockets encolados
+       {:noreply, state}
+    end
   end
 
   def handle_info({:finish, msg}, %{"socket" => socket}=state) do
@@ -130,11 +142,14 @@ defmodule Xlsx.Report do
     {:noreply, new_state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector, "socket" => socket}=state) do
     Logger.warning ["#{inspect pid} worker... deleted"]
     {:atomic, :ok} = Xlsx.Mnesia.Worker.delete(pid)
     case Xlsx.Mnesia.Worker.empty_workers() do
       :true ->
+        Xlsx.Mnesia.Socket.delete(socket)
+        # Después de eliminarlo, taer el siguiente
+        get_next_socket();
         GenServer.cast(collector, :generate)
       _ -> []
     end
@@ -169,4 +184,27 @@ defmodule Xlsx.Report do
     end
   end
 
+  def get_name_columns(rows) do
+    for item <- rows,
+      into: [],
+      do: [item["name"], bold: true, font: "Arial", size: 12, border: [bottom: [style: :double, color: "#000000"], top: [style: :double, color: "#000000"], left: [style: :double, color: "#000000"], right: [style: :double, color: "#000000"]]]
+  end
+
+  def rows_with_out_specials(rows) do
+    for item <- rows, item["special"] === :false, do: item
+  end
+
+  def save_socket(socket, data, turn, date) do
+    :ok = Xlsx.Mnesia.Socket.dirty_write(socket, data, turn, date)
+  end
+
+  def get_next_socket() do
+    case Xlsx.Mnesia.Socket.next_socket() do
+      {:ok, socket} ->
+        Logger.warning ["socket: #{inspect socket}"]
+        # Aquí mandar a ejecutar la funcion que va a empezar a generar el nuevo reporte del siguiente socket
+        # Creo se debe actualizar el estado
+      _ -> []
+    end
+  end
 end
