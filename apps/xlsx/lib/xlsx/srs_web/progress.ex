@@ -31,9 +31,11 @@ defmodule Xlsx.SrsWeb.Progress do
 
 
   @impl true
-  def handle_info({:done , file_name}, %{:progress_timeout => progress_timeout, "res_socket" => res_socket}=state) do
+  def handle_info({:done , file_name}, %{:progress_timeout => progress_timeout, "res_socket" => res_socket, "parent" => parent}=state) do
     {:ok, response} = Poison.encode(%{"url" => file_name})
     :gen_tcp.send(res_socket, response)
+    # GenServer.cast(self(), :stop)
+    send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end
   def handle_info({:update_status, status}, %{:progress_timeout => progress_timeout}=state) do
@@ -64,7 +66,7 @@ defmodule Xlsx.SrsWeb.Progress do
 
   @impl true
   def terminate(_reason, _state) do
-    Logger.warning ["#{inspect self()}... terminate"]
+    # Logger.warning ["#{inspect self()}... terminate progress"]
     :ok
   end
 end

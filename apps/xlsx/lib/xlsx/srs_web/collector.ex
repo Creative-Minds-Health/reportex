@@ -65,7 +65,8 @@ defmodule Xlsx.SrsWeb.Collector do
 
     Logger.info "Finish..."
     send(progress, {:done, file_name})
-    {:noreply, :ok, Map.put(state, "rows", rows)}
+    # GenServer.cast(self(), :stop)
+    {:noreply, Map.put(state, "rows", rows)}
   end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
@@ -82,7 +83,7 @@ defmodule Xlsx.SrsWeb.Collector do
 
   @impl true
   def terminate(_reason, _state) do
-    Logger.warning ["#{inspect self()}... terminate"]
+    # Logger.warning ["#{inspect self()}... terminate collector"]
     :ok
   end
 

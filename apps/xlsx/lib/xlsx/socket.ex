@@ -2,6 +2,8 @@ defmodule Xlsx.Socket do
   use GenServer
   require Logger
 
+  alias Xlsx.Mnesia.Socket, as: MSocket
+
   # API
   def start_link(state) do
     GenServer.start_link(__MODULE__, Map.put(state, "workers", %{}), name: __MODULE__)
@@ -35,7 +37,6 @@ defmodule Xlsx.Socket do
     {:ok, pid} = Xlsx.Report.start(%{"lsocket" => state["lsocket"], "parent" => self()})
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
-    Logger.info ["#{inspect state}"]
     {:noreply, Map.put(state, "workers", Map.put(state["workers"], pid, %{"init_date" => date}))}
   end
   def handle_cast(_msg, state) do
@@ -43,8 +44,35 @@ defmodule Xlsx.Socket do
   end
 
   @impl true
+
+  def handle_info({:next, []}, state) do
+    Logger.warning ["Ya no hay nada"]
+    {:noreply, state}
+  end
+
+  def handle_info({:next, {_, socket, report, _data, _turno, _date, _status}}, state) do
+    :ok = MSocket.update_status(socket, {:waiting, :doing})
+    GenServer.cast(report, :start)
+    # Aqui cambiar el estatus a :doing al siguiente y mandarlo a trabajar
+    {:noreply, state}
+  end
+
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
-    Logger.warning ["#{inspect pid}... delete"]
+    # Logger.warning ["#{inspect pid}... delete reporte"]
+
+    #Se valida si el socket que se murio es el que estaba trabajando
+    case MSocket.check_kill_pid(pid) do
+      {:atomic, []} -> :undefined
+      {:atomic, [{_, socket, _, _, _, _, status}|_t]} ->
+        case status do
+          :doing ->
+            MSocket.delete(socket)
+            send(self(), {:next, get_next_socket()})
+          :waiting ->
+            MSocket.delete(socket)
+        end
+    end
+
     {:noreply, Map.put(state, "workers", Map.delete(state["workers"], pid))}
   end
   def handle_info(_msg, state) do
@@ -56,5 +84,12 @@ defmodule Xlsx.Socket do
   def terminate(_reason, state) do
     Logger.warning ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state["project"]]
     :ok
+  end
+
+  def get_next_socket() do
+    case MSocket.next_socket() do
+      {:ok, socket} -> socket
+      _ -> []
+    end
   end
 end

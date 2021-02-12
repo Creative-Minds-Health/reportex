@@ -35,6 +35,15 @@ defmodule Xlsx.Report do
   end
 
   @impl true
+  def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
+    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0})
+    Process.monitor(progress)
+
+    data_decode = Poison.decode!(data) |> DQuery.decode()
+    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
+    send(self(), {:count, Mongodb.count_query(data_decode, record["collection"])})
+    {:noreply, Map.put(state, "data", data_decode) |> Map.put("record", record) |> Map.put("progress", progress)}
+  end
   def handle_cast(:listener, %{"lsocket" => lsocket, "parent" => parent}=state) do
     {:ok, socket} = :gen_tcp.accept(lsocket)
     Logger.info ["Pid #{inspect __MODULE__} socket accepted"]
@@ -67,6 +76,7 @@ defmodule Xlsx.Report do
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "period" => query["stay.exit_date"], "progress" => progress})
+    Process.monitor(collector)
     for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
       {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
       Process.monitor(pid),
@@ -77,20 +87,20 @@ defmodule Xlsx.Report do
     {:noreply, Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
   end
   def handle_info({:socket_turn, 1}, %{"res_socket" => res_socket, "data" => data}=state) do
-    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0})
-    data_decode = MSocket.save_socket(res_socket, data, 1) |> Poison.decode!() |> DQuery.decode()
-    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
-    send(self(), {:count, Mongodb.count_query(data_decode, record["collection"])})
-    {:noreply, Map.put(state, "data", data_decode) |> Map.put("record", record) |> Map.put("progress", progress)}
+
+    MSocket.save_socket(res_socket, self(), data, 1, :doing)
+    GenServer.cast(self(), :start)
+    {:noreply, state}
   end
-  def handle_info({:socket_turn, turn}, state) do
+  def handle_info({:socket_turn, turn}, %{"res_socket" => res_socket, "data" => data}=state) do
     Logger.warning ["Eres el turno número... "]
+    MSocket.save_socket(res_socket, self(), data, turn, :waiting)
     # save_socket(socket, data, turn, date);
     # creo que aquí debo empezar a ejecutar la funcion que mande el progreso de turno a los sockets encolados
     {:noreply, state}
   end
 
-  def handle_info({:tcp, res_socket, data}, %{"socket" => socket, "page" => page}=state) do
+  def handle_info({:tcp, res_socket, data}, %{"socket" => socket}=state) do
     :ok=:inet.setopts(socket,[{:active, :once}])
     send(self(), {:socket_turn, MSocket.empty_sockets()})
     {:noreply, Map.put(state, "res_socket", res_socket) |> Map.put("data", data)}
@@ -101,9 +111,9 @@ defmodule Xlsx.Report do
     GenServer.cast(from, :stop)
     {:noreply, state}
   end
-  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip, "socket" => socket}=state) do
+  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip}=state) do
     msg = Integer.to_string(skip) <> "-" <> Integer.to_string(total)
-    {:ok, response} = Poison.encode(%{"progreso..." => msg})
+    {:ok, _response} = Poison.encode(%{"progreso..." => msg})
     send(self(), {:run, page * documents})
     {:noreply, state}
   end
@@ -138,24 +148,35 @@ defmodule Xlsx.Report do
     {:noreply, new_state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector, "socket" => socket}=state) do
-    Logger.warning ["#{inspect pid} worker... deleted"]
+  # def handle_info({:DOWN, _ref, :process, collector, _reason}, %{"collector" => collector}=state) do
+  #   Logger.warning ["#{inspect collector}... deleted collector"]
+  #   Map.delete(state["collector"], collector)
+  #   {:noreply, state}
+  # end
+  #
+  # def handle_info({:DOWN, _ref, :process, progress, _reason}, %{"progress" => progress}=state) do
+  #   Logger.warning ["#{inspect progress}... deleted progress"]
+  #   Map.delete(state["progress"], progress)
+  #   {:noreply, state}
+  # end
+
+  def handle_info(:kill, %{"collector" => collector, "progress" => progress}=state) do
+    GenServer.cast(progress, :stop)
+    GenServer.cast(collector, :stop)
+    GenServer.cast(self(), :stop)
+    {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     {:atomic, :ok} = MWorker.delete(pid)
     case MWorker.empty_workers() do
       :true ->
-        MSocket.delete(socket)
-        # Después de eliminarlo, taer el siguiente
-        get_next_socket();
         GenServer.cast(collector, :generate)
       _ -> []
     end
     {:noreply, state}
   end
-  # def handle_info({:tcp, socket, data}, %{socket: sock}=state) do
-  #   Logger.info ["Socket message #{inspect data}"]
-  #   :ok=:inet.setopts(sock,[{:active, :once}])
-  #   {:noreply, Map.put(state, :response_socket, socket), 300_000}
-  # end
+
   def handle_info(msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE #{inspect msg}"
     {:noreply, state}
@@ -163,7 +184,6 @@ defmodule Xlsx.Report do
 
   @impl true
   def terminate(_reason, _state) do
-    Logger.warning ["#{inspect self()}... terminate"]
     :ok
   end
 
@@ -188,19 +208,5 @@ defmodule Xlsx.Report do
 
   def rows_with_out_specials(rows) do
     for item <- rows, item["special"] === :false, do: item
-  end
-
-  # def save_socket(socket, data, turn, date) do
-  #   :ok = MSocket.dirty_write(socket, data, turn, date)
-  # end
-
-  def get_next_socket() do
-    case MSocket.next_socket() do
-      {:ok, socket} ->
-        Logger.warning ["socket: #{inspect socket}"]
-        # Aquí mandar a ejecutar la funcion que va a empezar a generar el nuevo reporte del siguiente socket
-        # Creo se debe actualizar el estado
-      _ -> []
-    end
   end
 end
