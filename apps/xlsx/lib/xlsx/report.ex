@@ -36,10 +36,10 @@ defmodule Xlsx.Report do
 
   @impl true
   def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
-    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0})
+    data_decode = Poison.decode!(data) |> DQuery.decode()
+    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data_decode["socket_id"]})
     Process.monitor(progress)
 
-    data_decode = Poison.decode!(data) |> DQuery.decode()
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
     send(self(), {:count, Mongodb.count_query(data_decode, record["collection"])})
     {:noreply, Map.put(state, "data", data_decode) |> Map.put("record", record) |> Map.put("progress", progress)}

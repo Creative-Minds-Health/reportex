@@ -31,8 +31,8 @@ defmodule Xlsx.SrsWeb.Progress do
 
 
   @impl true
-  def handle_info({:done , file_name}, %{:progress_timeout => progress_timeout, "res_socket" => res_socket, "parent" => parent}=state) do
-    {:ok, response} = Poison.encode(%{"url" => file_name})
+  def handle_info({:done , file_name}, %{:progress_timeout => progress_timeout, "res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
+    {:ok, response} = Poison.encode(%{"url" => file_name, "socket_id" => socket_id})
     :gen_tcp.send(res_socket, response)
     # GenServer.cast(self(), :stop)
     send(parent, :kill)
@@ -47,14 +47,14 @@ defmodule Xlsx.SrsWeb.Progress do
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "total", total) |> Map.put("status", :working), progress_timeout}
   end
-  def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total}=state) do
+  def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total, "socket_id" => socket_id}=state) do
     map = case status do
       :waiting -> %{"message" => "Calculando progreso"}
       :working -> %{"message" => "Progreso " <> Integer.to_string(documents) <> " de " <> Integer.to_string(total), "Porcentaje" => trunc((documents * 100) / total)}
       :writing -> %{"message" => "Generando archivo excel..."}
       _-> %{}
     end
-    {:ok, response} = Poison.encode(Map.put(map, "total", total))
+    {:ok, response} = Poison.encode(Map.put(map, "total", total) |> Map.put("status", "doing") |> Map.put("socket_id", socket_id))
     Logger.info ["#{inspect response}"]
     :gen_tcp.send(res_socket, response)
     {:noreply, state, progress_timeout}
