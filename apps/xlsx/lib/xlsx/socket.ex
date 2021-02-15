@@ -4,6 +4,7 @@ defmodule Xlsx.Socket do
 
   alias Xlsx.Mnesia.Socket, as: MSocket
   alias Xlsx.SrsWeb.ProgressTurn, as: ProgressTurn
+  alias Xlsx.Mnesia.Worker, as: MWorker
 
   # API
   def start_link(state) do
@@ -67,17 +68,31 @@ defmodule Xlsx.Socket do
     #Se valida si el socket que se murio es el que estaba trabajando
     case MSocket.check_kill_pid(pid) do
       {:atomic, []} -> :undefined
-      {:atomic, [{_, socket, _, _, _, _, status}|_t]} ->
+      {:atomic, [{_, socket, report, _, _, _, status}|_t]} ->
         case status do
           :doing ->
+            Logger.warning ["report #{inspect report}"]
+            send(self(), :kill_workers)
             MSocket.delete(socket)
             send(self(), {:next, get_next_socket()})
           :waiting ->
             MSocket.delete(socket)
+            # aQUII TENGO QUE ACOMODAR LOS TURNOS CUANDO SE BORRA UNO
         end
     end
 
     {:noreply, Map.put(state, "workers", Map.delete(state["workers"], pid))}
+  end
+
+  def handle_info(:kill_workers, state) do
+    case MWorker.get_workers() do
+      [] -> [];
+      list ->
+        for {_, pid, _, _} <- list,
+        {:atomic, :ok} = MWorker.delete(pid),
+        do: GenServer.cast(pid, :stop)
+    end
+    {:noreply, state}
   end
   def handle_info(_msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE"

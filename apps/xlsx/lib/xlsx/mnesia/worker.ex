@@ -39,4 +39,10 @@ defmodule Xlsx.Mnesia.Worker do
     end
   end
 
+  def get_workers() do
+    case :mnesia.transaction(fn -> :mnesia.match_object({XlsxWorker, :_, :_, :_}) end) do
+      {:atomic, []} -> []
+      {:atomic, list} -> list
+    end
+  end
 end
