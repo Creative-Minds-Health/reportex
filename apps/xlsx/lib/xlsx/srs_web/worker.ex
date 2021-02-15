@@ -42,7 +42,7 @@ defmodule Xlsx.SrsWeb.Worker do
     {:ok, _date2} = DateTime.now("America/Mexico_City")
     :ok = GenServer.call(collector, {:concat, records, documents})
     :ok = GenServer.call(parent, :waiting_status)
-    Logger.info ["documents... #{inspect documents}"]
+    # Logger.info ["documents... #{inspect documents}"]
     send(parent, {:run_by_worker, self()})
     {:noreply, state}
   end
