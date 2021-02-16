@@ -52,4 +52,18 @@ defmodule Xlsx.Mnesia.Socket do
       {:atomic, list} -> list
     end
   end
+
+  def update_turns() do
+    case waiting_sockets() do
+      [] -> :ok
+      list ->
+        list
+        |> Enum.with_index
+        |> Enum.each(fn({{_, socket, report, data, _, date, status}, i}) ->
+          :mnesia.dirty_write({XlsxSocket, socket, report, data, i + 2, date, status})
+        end)
+
+        :ok
+    end
+  end
 end
