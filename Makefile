@@ -1,6 +1,8 @@
 #!/bin/bash
 
 .PHONY: deps
+npm:
+	npm install
 compile:
 	# @rm -rf _build
 	rm -rf _build/dev/lib/xlsx/priv/

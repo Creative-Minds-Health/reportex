@@ -9,7 +9,11 @@
 # move said applications out of the umbrella.
 import Config
 config :xlsx,
-  mongodb: File.read!("./config/secrets/mongodb.js")
+  mongodb: File.read!("./config/secrets/mongodb.js"),
+  srs_gcs: File.read!("./config/secrets/srs_gcs.json"),
+  report: [
+    progress_timeout: 2_000
+  ]
 
 config  :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 

@@ -12,6 +12,8 @@ defmodule Xlsx.Supervisor do
   def init(args) do
     IO.puts "args: #{inspect args}"
     {:ok, mongodb} = Application.get_env(:xlsx, :mongodb) |> Poison.decode()
+    {:ok, srs_gcs} = Application.get_env(:xlsx, :srs_gcs) |> Poison.decode()
+    :ok = Application.put_env(:xlsx, :srs_gcs, Map.put(srs_gcs, "key_file_name", :filename.join(File.cwd!(), Map.get(srs_gcs, "key_file_name"))))
     js_path = :filename.join(:code.priv_dir(:xlsx), "lib/js")
     children = [
       %{

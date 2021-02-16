@@ -32,9 +32,15 @@ defmodule Xlsx.SrsWeb.Progress do
 
   @impl true
   def handle_info({:done , file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
-    {:ok, response} = Poison.encode(%{"url" => file_name, "socket_id" => socket_id})
-    :gen_tcp.send(res_socket, response)
-    # GenServer.cast(self(), :stop)
+    map = Application.get_env(:xlsx, :srs_gcs)
+    to_unix_string = Integer.to_string(DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
+    new_map =
+      Map.put(map, "file", :filename.join(File.cwd!(), file_name))
+      |> Map.put("destination", Map.get(map, "destination") <> to_unix_string <> "/"<> file_name)
+    {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
+    {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
+    :gen_tcp.send(res_socket, json_response)
+    #GenServer.cast(self(), :stop)
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end
