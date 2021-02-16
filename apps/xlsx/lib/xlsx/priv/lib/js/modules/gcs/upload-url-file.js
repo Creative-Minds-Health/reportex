@@ -16,7 +16,7 @@ function uploadUrlFile (data){
   }).then((r) => {
     const options = {
       action: 'read',
-      expires: Date.now() + 1000 * 60 * 1,
+      expires: Date.now() + 1000 * 60 * data.timeout,
     };
     const file = gcs.bucket(data.bucket_name).file(data.destination);
     return file.getSignedUrl(options).then(url => {

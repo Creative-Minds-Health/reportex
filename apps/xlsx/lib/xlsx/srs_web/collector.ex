@@ -60,7 +60,7 @@ defmodule Xlsx.SrsWeb.Collector do
     |> Sheet.set_col_width("K", 14.0)
     |> Sheet.set_col_width("L", 14.0)
 
-    file_name = "Reporte_egresos_" <> get_date_now(:undefined, "-") <> ".xlsx"
+    file_name = get_date_now(:undefined, "-")
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(file_name)
 
     Logger.info "Finish..."
