@@ -11,6 +11,7 @@ defmodule Xlsx.Supervisor do
   @impl true
   def init(args) do
     IO.puts "args: #{inspect args}"
+    {:ok, mongodb} = Application.get_env(:xlsx, :mongodb) |> Poison.decode()
     js_path = :filename.join(:code.priv_dir(:xlsx), "lib/js")
     children = [
       %{
@@ -24,9 +25,9 @@ defmodule Xlsx.Supervisor do
       %{
         id: Mongo,
         start: {Mongo, :start_link, [[
-          name: :mongo, database: Application.get_env(:xlsx, :mongodb_database),
-          pool_size: Application.get_env(:xlsx, :mongodb_pool_size),
-          url: Application.get_env(:xlsx, :mongodb_url),
+          name: :mongo, database: mongodb["db"],
+          pool_size: mongodb["pool_size"],
+          url: mongodb["url"],
           # ssl: true,
           # ssl_opts: [
           #   ciphers: ['AES256-GCM-SHA384'],

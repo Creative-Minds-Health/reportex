@@ -26,3 +26,4 @@ erl_crash.dump
 .formatter.exs
 mix.lock
 /Mnesia*
+/config/s*
