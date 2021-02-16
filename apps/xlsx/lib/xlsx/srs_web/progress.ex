@@ -36,7 +36,9 @@ defmodule Xlsx.SrsWeb.Progress do
     to_unix_string = Integer.to_string(DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
     new_map =
       Map.put(map, "file", :filename.join(File.cwd!(), file_name))
-      |> Map.put("destination", Map.get(map, "destination") <> to_unix_string <> "/"<> file_name)
+      |> Map.put("destination", Map.get(map, "destination") <> file_name <> "-" <> to_unix_string  <> ".xlsx")
+      |> Map.put("timeout", Map.get(map, "timeout", 1))
+    Logger.info ["new_map: #{inspect new_map}"]
     {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
     {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
     :gen_tcp.send(res_socket, json_response)
