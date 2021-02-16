@@ -106,12 +106,20 @@ defmodule Xlsx.SrsWeb.ParserA do
     [Map.get(dh, "key", default_value), Map.get(dh, "is_gratuity", "-1"), Map.get(dh, "insurance_policy", ""), Map.get(dh, "check_digit", "")]
   end
 
-  def get_value_pipe(comorbidities_list, value, :undefined, default_value) do
-    list = for item <- comorbidities_list, do: Map.get(item, value, default_value)
+  def get_value_pipe(list, "diagnosis", "key_diagnosis", _default_value) do
+
+    list = for item <- list,
+    do: String.replace(Map.get(item, "diagnosis", %{}) |> Map.get("key_diagnosis", ""), ".", "", global: true)
+
     Enum.join(list, " | ")
   end
-  def get_value_pipe(comorbidities_list, value, second, default_value) do
-    list = for item <- comorbidities_list, do: Map.get(item, value, %{}) |> Map.get(second, default_value)
+
+  def get_value_pipe(list, value, :undefined, default_value) do
+    list = for item <- list, do: Map.get(item, value, default_value)
+    Enum.join(list, " | ")
+  end
+  def get_value_pipe(list, value, second, default_value) do
+    list = for item <- list, do: Map.get(item, value, %{}) |> Map.get(second, default_value)
     Enum.join(list, " | ")
   end
 end

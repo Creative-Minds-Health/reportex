@@ -57,8 +57,9 @@ defmodule Xlsx.Socket do
 
   def handle_info({:next, {_, socket, report, _data, _turno, _date, _status}}, state) do
     :ok = MSocket.update_status(socket, {:waiting, :doing})
+    # aQUII TENGO QUE ACOMODAR LOS TURNOS CUANDO SE BORRA UNO
+    # :ok = MSocket.update_turns()
     GenServer.cast(report, :start)
-    # Aqui cambiar el estatus a :doing al siguiente y mandarlo a trabajar
     {:noreply, state}
   end
 
@@ -71,13 +72,13 @@ defmodule Xlsx.Socket do
       {:atomic, [{_, socket, report, _, _, _, status}|_t]} ->
         case status do
           :doing ->
-            Logger.warning ["report #{inspect report}"]
             send(self(), :kill_workers)
             MSocket.delete(socket)
             send(self(), {:next, get_next_socket()})
           :waiting ->
             MSocket.delete(socket)
             # aQUII TENGO QUE ACOMODAR LOS TURNOS CUANDO SE BORRA UNO
+            # :ok = MSocket.update_turns()
         end
     end
 

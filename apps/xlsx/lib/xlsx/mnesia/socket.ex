@@ -11,7 +11,6 @@ defmodule Xlsx.Mnesia.Socket do
   def save_socket(socket, report, data, turn, status) do
     {:ok, date} = DateTime.now("America/Mexico_City")
     :mnesia.dirty_write({XlsxSocket, socket, report, data, turn, date, status})
-    # Logger.warning ["lista de sockets: #{inspect :mnesia.transaction(fn -> :mnesia.match_object({XlsxSocket, :_, :_, :_, :_, :_, :_}) end)}"]
     data
   end
 
@@ -26,8 +25,6 @@ defmodule Xlsx.Mnesia.Socket do
       {:atomic, [{XlsxSocket, id, report, data, turno, date, _status}|_t]} ->
         :mnesia.dirty_write({XlsxSocket, id, report, data, turno, date, new_status})
     end
-
-    # Logger.warning ["lista de sockets: #{inspect :mnesia.transaction(fn -> :mnesia.match_object({XlsxSocket, :_, :_, :_, :_, :_, :_}) end)}"]
   end
 
   def check_kill_pid(report) do

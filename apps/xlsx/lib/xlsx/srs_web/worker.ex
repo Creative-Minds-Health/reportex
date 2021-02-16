@@ -131,6 +131,44 @@ defmodule Xlsx.SrsWeb.Worker do
     end
   end
 
+  def get_value(item, [_h|_t], "affections|main_diagnosis|key_diagnosis", default_value) do
+    case Map.get(item, "affections", %{}) |> Map.get("main_diagnosis", %{}) |> Map.get("key_diagnosis", "") do
+      "" -> default_value
+      key_diagnosis ->
+        String.replace(key_diagnosis, ".", "", global: true)
+    end
+  end
+
+  def get_value(item, [_h|_t], "comorbidity|diagnosis|key_diagnosis", default_value) do
+    case Map.get(item, "comorbidity", %{}) |> Map.get("diagnosis", %{}) |> Map.get("key_diagnosis", "") do
+      "" -> default_value
+      key_diagnosis ->
+        String.replace(key_diagnosis, ".", "", global: true)
+    end
+  end
+
+  def get_value(item, [_h|_t], "comorbidity|main_condition_reselected|key", default_value) do
+    case Map.get(item, "comorbidity", %{}) |> Map.get("main_condition_reselected", %{}) |> Map.get("key", "") do
+      "" -> default_value
+      key ->
+        case key do
+          :nil -> ""
+          _ -> String.replace(key, ".", "", global: true)
+        end
+    end
+  end
+
+  def get_value(item, [_h|_t], "comorbidity|external_cause|key", default_value) do
+    case Map.get(item, "comorbidity", %{}) |> Map.get("external_cause", %{}) |> Map.get("key", "") do
+      "" -> default_value
+      key_diagnosis ->
+        case key_diagnosis do
+          :nil -> ""
+          _ -> String.replace(key_diagnosis, ".", "", global: true)
+        end
+    end
+  end
+
   def get_value(item, [h|t], field, default_value) do
     case Map.get(item, h, :undefined) do
       :undefined -> default_value
