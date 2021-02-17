@@ -33,10 +33,11 @@ defmodule Xlsx.SrsWeb.Progress do
   @impl true
   def handle_info({:done , file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
-    to_unix_string = Integer.to_string(DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
+    date = DateTime.now!("America/Mexico_City")
+    time = get_number(date.hour) <> "-" <> get_number(date.minute) <> "-" <> get_number(date.second)
     new_map =
       Map.put(map, "file", :filename.join(File.cwd!(), file_name))
-      |> Map.put("destination", Map.get(map, "destination") <> file_name <> "-" <> to_unix_string  <> ".xlsx")
+      |> Map.put("destination", Map.get(map, "destination") <> file_name <> "_" <> time  <> ".xlsx")
       |> Map.put("expires", Map.get(map, "expires", 1))
     Logger.info ["new_map: #{inspect new_map}"]
     {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
@@ -76,5 +77,13 @@ defmodule Xlsx.SrsWeb.Progress do
   def terminate(_reason, _state) do
     # Logger.warning ["#{inspect self()}... terminate progress"]
     :ok
+  end
+
+  def get_number(number) when number < 10 do
+    "0" <> Integer.to_string(number);
+  end
+
+  def get_number(number) do
+    Integer.to_string(number);
   end
 end
