@@ -2,6 +2,8 @@ defmodule Xlsx.SrsWeb.Progress do
   use GenServer
   require Logger
 
+  alias Xlsx.Date.Date, as: DateLib
+
   # API
   def start(state) do
     GenServer.start(__MODULE__, state)
@@ -34,7 +36,7 @@ defmodule Xlsx.SrsWeb.Progress do
   def handle_info({:done , file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
     date = DateTime.now!("America/Mexico_City")
-    time = get_number(date.hour) <> "-" <> get_number(date.minute) <> "-" <> get_number(date.second)
+    time = DateLib.string_time(date, "-")
     new_map =
       Map.put(map, "file", :filename.join(File.cwd!(), file_name))
       |> Map.put("destination", Map.get(map, "destination") <> file_name <> "_" <> time  <> ".xlsx")
