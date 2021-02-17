@@ -35,32 +35,47 @@ defmodule Xlsx.SrsWeb.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "period" => period, "parent" => parent, "progress" => progress}=state) do
+  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "query" => query, "parent" => parent, "progress" => progress}=state) do
     Logger.info "Generate..."
+
     send(progress, {:update_status, :writing})
     widths = for index <- 1..110, into: %{}, do:  {index, 30}
     sheet = %Sheet{
       name: "Resultados",
-      rows: [[], [], [], []] ++[columns] ++ rows,
-      merge_cells: [{"C2", "J2"}, {"D3", "F3"}],
+      rows: [[], [], [], [], [], [], []] ++[columns] ++ rows,
+      merge_cells: [{"C2", "J2"}],
       col_widths: widths
     }
-    # |> Sheet.set_cell("A1", "Imagen", font: "Arial", size: 12, align_horizontal: :center, align_vertical: :center)
     |> Sheet.set_cell("C2", "Reporte de egresos", bold: true, font: "Arial", size: 19, align_horizontal: :center, align_vertical: :center)
-    |> Sheet.set_cell("C3", "Periodo:", bold: true, font: "Arial", size: 12, align_horizontal: :left)
-    |> Sheet.set_cell("D3", get_date_now(period["$gte"], "/") <> " - " <> get_date_now(period["$lte"], "/"), font: "Arial", size: 12, align_horizontal: :left)
-    # |> Sheet.set_col_width("A", 17.0)
-    # |> Sheet.set_col_width("B", 20.0)
-    # |> Sheet.set_col_width("C", 17.0)
-    # |> Sheet.set_col_width("D", 17.0)
-    # |> Sheet.set_col_width("E", 17.0)
-    # |> Sheet.set_col_width("F", 17.0)
-    # |> Sheet.set_col_width("G", 17.0)
-    # |> Sheet.set_col_width("H", 17.0)
-    # |> Sheet.set_col_width("I", 14.0)
-    # |> Sheet.set_col_width("J", 14.0)
-    # |> Sheet.set_col_width("K", 14.0)
-    # |> Sheet.set_col_width("L", 14.0)
+    |> Sheet.set_cell("C4", "Periodo:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
+    |> Sheet.set_cell("D4", get_date_now(query["stay.exit_date"]["$gte"], "/") <> " - " <> get_date_now(query["stay.exit_date"]["$lte"], "/"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("E4", "Jurisdicción:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("F4", Map.get(query, "jurisdiction.key", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("G4", "Unidad médica:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("H4", Map.get(query, "clue", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("I4", "Folio de egreso:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("J4", Map.get(query, "folio", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("C5", "Nombre de paciente, CURP o póliza:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("D5", get_patient_fullname(query), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("E5", "Motivo de egreso:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("F5", Map.get(query, "stay.shipping_reason.key", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("G5", "Afección principal diagnostico (CIE-10):", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("H5", Map.get(query, "affections.main_diagnosis.key_diagnosis", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("I5", "Servicio de ingreso:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("J5", Map.get(query, "stay.admission_service.key", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("C6", "Estatus:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("D6", Map.get(query, "status.key", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+
+    |> Sheet.set_cell("E6", "Código CIE-9 de procedimiento:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("F6", Map.get(query, "procedures.diagnosis.key_diagnosis", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
 
     file_name = get_date_now(:undefined, "-")
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(file_name)
@@ -87,6 +102,13 @@ defmodule Xlsx.SrsWeb.Collector do
   def terminate(_reason, _state) do
     # Logger.warning ["#{inspect self()}... terminate collector"]
     :ok
+  end
+
+  def get_patient_fullname(query) do
+    case Map.get(query, "$or", []) do
+      [] -> "Sin filtro"
+      [%{"patient.fullname" => %{"$options" => _, "$regex" => fullname}}|_] -> fullname
+    end
   end
 
   def get_date_now(:undefined, separator) do

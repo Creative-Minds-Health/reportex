@@ -65,7 +65,7 @@ defmodule Xlsx.SrsWeb.Progress do
       :writing -> %{"message" => "Generando archivo excel..."}
       _-> %{}
     end
-    {:ok, date} = DateTime.now("America/Mexico_City"),
+    {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, response} = Poison.encode(Map.put(map, "total", total) |> Map.put("status", "doing") |> Map.put("socket_id", socket_id) |> Map.put("date_last_update", format_date(date)))
     # Logger.info ["#{inspect response}"]
     :gen_tcp.send(res_socket, response)
