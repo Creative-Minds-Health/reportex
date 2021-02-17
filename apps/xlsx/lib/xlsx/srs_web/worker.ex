@@ -172,7 +172,11 @@ defmodule Xlsx.SrsWeb.Worker do
   def get_value(item, [h|t], field, default_value) do
     case Map.get(item, h, :undefined) do
       :undefined -> default_value
-      value -> get_value(value, t, field, default_value)
+      value ->
+        case value do
+          :nil -> default_value
+          _ -> get_value(value, t, field, default_value)
+        end
     end
   end
 

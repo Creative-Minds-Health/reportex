@@ -203,7 +203,7 @@ defmodule Xlsx.Report do
   def name_columns(rows) do
     for item <- rows,
       into: [],
-      do: [item["name"], bold: true, font: "Arial", size: 12, border: [bottom: [style: :double, color: "#000000"], top: [style: :double, color: "#000000"], left: [style: :double, color: "#000000"], right: [style: :double, color: "#000000"]]]
+      do: [item["name"], bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :thin, color: "#000000"], top: [style: :thin, color: "#000000"], left: [style: :thin, color: "#000000"], right: [style: :thin, color: "#000000"]]]
   end
 
   def rows_with_out_specials(rows) do
