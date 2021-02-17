@@ -38,17 +38,17 @@ defmodule Xlsx.SrsWeb.Collector do
   def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "period" => period, "parent" => parent, "progress" => progress}=state) do
     Logger.info "Generate..."
     send(progress, {:update_status, :writing})
-    widths = for index <- 1..110, into: %{}, do:  {index, 30} 
+    widths = for index <- 1..110, into: %{}, do:  {index, 30}
     sheet = %Sheet{
       name: "Resultados",
       rows: [[], [], [], []] ++[columns] ++ rows,
-      merge_cells: [{"A1", "D3"},{"E2", "T2"}, {"G3", "I3"}],
+      merge_cells: [{"C2", "J2"}, {"D3", "F3"}],
       col_widths: widths
     }
     # |> Sheet.set_cell("A1", "Imagen", font: "Arial", size: 12, align_horizontal: :center, align_vertical: :center)
-    |> Sheet.set_cell("E2", "Reporte de egresos", bold: true, font: "Arial", size: 19, align_horizontal: :center, align_vertical: :center)
-    |> Sheet.set_cell("F3", "Periodo:", bold: true, font: "Arial", size: 12, align_horizontal: :left)
-    |> Sheet.set_cell("G3", get_date_now(period["$gte"], "/") <> " - " <> get_date_now(period["$lte"], "/"), font: "Arial", size: 12, align_horizontal: :left)
+    |> Sheet.set_cell("C2", "Reporte de egresos", bold: true, font: "Arial", size: 19, align_horizontal: :center, align_vertical: :center)
+    |> Sheet.set_cell("C3", "Periodo:", bold: true, font: "Arial", size: 12, align_horizontal: :left)
+    |> Sheet.set_cell("D3", get_date_now(period["$gte"], "/") <> " - " <> get_date_now(period["$lte"], "/"), font: "Arial", size: 12, align_horizontal: :left)
     # |> Sheet.set_col_width("A", 17.0)
     # |> Sheet.set_col_width("B", 20.0)
     # |> Sheet.set_col_width("C", 17.0)
