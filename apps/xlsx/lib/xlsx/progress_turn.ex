@@ -61,7 +61,7 @@ defmodule Xlsx.SrsWeb.ProgressTurn do
 
   def format_date(date) do
     {{year, month, day}, {hour, minutes, seconds}} = NaiveDateTime.to_erl(date)
-    get_number(day) <> "/" <> get_number(month) <> "/" <> Integer.to_string(year) <> " " <> Integer.to_string(hour) <> ":" <> Integer.to_string(minutes) <> ":" <> Integer.to_string(seconds)
+    get_number(day) <> "/" <> get_number(month) <> "/" <> get_number(year) <> " " <> get_number(hour) <> ":" <> get_number(minutes) <> ":" <> get_number(seconds)
   end
 
   def get_number(number) when number < 10 do
