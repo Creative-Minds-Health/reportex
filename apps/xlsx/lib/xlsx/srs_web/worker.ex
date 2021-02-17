@@ -2,6 +2,7 @@ defmodule Xlsx.SrsWeb.Worker do
   use GenServer
   require Logger
 
+  alias Xlsx.Date.Date, as: DateLib
 
   # API
   def start(state) do
@@ -181,9 +182,10 @@ defmodule Xlsx.SrsWeb.Worker do
   end
 
   def sinba_date(date) do
+    DateLib.string_date(date, "/")
     #{:ok, json} = Poison.encode(%{"date" => DateTime.to_string(date)})
     #{:ok, response} = NodeJS.call({"modules/sinba/bulk-load/bulk-load.helper.js", :sinbaDate}, [json])
     # response["date"]
-    DateTime.to_string(date)
+    # DateTime.to_string(date)
   end
 end
