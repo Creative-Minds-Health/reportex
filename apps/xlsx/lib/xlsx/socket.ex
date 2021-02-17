@@ -69,6 +69,7 @@ defmodule Xlsx.Socket do
     case MSocket.check_kill_pid(pid) do
       {:atomic, []} -> :undefined
       {:atomic, [{_, socket, report, _, _, _, status}|_t]} ->
+        :ok=:gen_tcp.close(socket)
         case status do
           :doing ->
             send(self(), :kill_workers)
