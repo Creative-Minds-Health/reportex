@@ -42,7 +42,7 @@ defmodule Xlsx.Report do
 
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
     send(self(), {:count, Mongodb.count_query(data_decode, record["collection"])})
-    {:noreply, Map.put(state, "data", data_decode) |> Map.put("record", record) |> Map.put("progress", progress)}
+    {:noreply, Map.put(state, "data", data_decode) |> Map.put("record", record) |> Map.put("progress", progress) |> Map.put("socket_id", data_decode["socket_id"])}
   end
   def handle_cast(:listener, %{"lsocket" => lsocket, "parent" => parent}=state) do
     {:ok, socket} = :gen_tcp.accept(lsocket)
@@ -67,8 +67,12 @@ defmodule Xlsx.Report do
     {:noreply, state}
   end
 
-  def handle_info({:count, 0}, state) do
-    Logger.warning ["No hay resultados en el query"]
+  def handle_info({:count, 0}, %{"progress" => progress, "socket_id" => socket_id, "res_socket" => res_socket}=state) do
+
+    {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", socket_id))
+    :gen_tcp.send(res_socket, response)
+    GenServer.cast(progress, :stop)
+    GenServer.cast(self(), :stop)
     {:noreply, state}
   end
   def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
