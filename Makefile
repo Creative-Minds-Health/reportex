@@ -29,3 +29,6 @@ remote:
 
 stop:
 	_build/prod/rel/reportex/bin/reportex stop
+
+tail:
+	tail -f _build/prod/rel/reportex/tmp/log/erlang.log.1

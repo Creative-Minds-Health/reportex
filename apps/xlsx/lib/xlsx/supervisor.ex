@@ -25,6 +25,14 @@ defmodule Xlsx.Supervisor do
         modules: [Xlsx.Socket]
       },
       %{
+        id: Tmp,
+        start: {Xlsx.Tmp, :start_link, [%{}]},
+        restart: :permanent,
+        shutdown: 2_000,
+        type: :worker,
+        modules: [Xlsx.Tmp]
+      },
+      %{
         id: Mongo,
         start: {Mongo, :start_link, [[
           name: :mongo, database: mongodb["db"],
