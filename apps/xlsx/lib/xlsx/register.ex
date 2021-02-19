@@ -3,6 +3,7 @@ defmodule Xlsx.Register do
   require Logger
 
   alias Xlsx.Listener, as: XListener
+  alias Xlsx.Mnesia.Node, as: MNode
 
   # API
   def start_link(state) do
@@ -41,6 +42,7 @@ defmodule Xlsx.Register do
     Logger.info "Node connected #{inspect node}"
     response = GenServer.call({XListener, node}, :configure)
     Logger.info ["Response: #{inspect response}"]
+    MNode.save_node(node, response["size"], 0)
     {:noreply, state}
   end
   def handle_info({:nodedown, node}, state) do
