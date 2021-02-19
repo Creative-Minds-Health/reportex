@@ -10,7 +10,7 @@ compile:
 	cp -R apps/xlsx/lib/xlsx/priv/* _build/dev/lib/xlsx/priv/
 
 run:
-	iex --name reportex@127.0.0.1 -S mix
+	iex --name reportex@127.0.0.1 --cookie "elixir" -S mix
 
 release:
 	rm -rf _build
