@@ -2,6 +2,8 @@ defmodule Xlsx.Register do
   use GenServer
   require Logger
 
+  alias Xlsx.Listener, as: XListener
+
   # API
   def start_link(state) do
     GenServer.start_link(__MODULE__, state, name: __MODULE__)
@@ -37,6 +39,8 @@ defmodule Xlsx.Register do
   @impl true
   def handle_info({:nodeup, node}, state) do
     Logger.info "Node connected #{inspect node}"
+    response = GenServer.call({XListener, node}, :configure)
+    Logger.info ["Response: #{inspect response}"]
     {:noreply, state}
   end
   def handle_info({:nodedown, node}, state) do
