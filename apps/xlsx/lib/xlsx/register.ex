@@ -12,6 +12,7 @@ defmodule Xlsx.Register do
   def init(state) do
     Process.flag(:trap_exit, true)
     Logger.info "Register is running..."
+    :ok=:net_kernel.monitor_nodes(true)
     {:ok, state}
   end
 
@@ -34,6 +35,14 @@ defmodule Xlsx.Register do
   end
 
   @impl true
+  def handle_info({:nodeup, node}, state) do
+    Logger.info "Node connected #{inspect node}"
+    {:noreply, state}
+  end
+  def handle_info({:nodedown, node}, state) do
+    Logger.info "Node disonnected #{inspect node}"
+    {:noreply, state}
+  end
   def handle_info(_msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE"
     {:noreply, state}

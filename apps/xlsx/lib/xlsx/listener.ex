@@ -4,7 +4,7 @@ defmodule Xlsx.Listener do
 
   # API
   def start_link(state) do
-    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false), name: __MODULE__)
+    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false) |> Map.put("master", Application.get_env(:xlsx, :master)), name: __MODULE__)
   end
 
   # Callbacks
@@ -30,9 +30,14 @@ defmodule Xlsx.Listener do
   end
 
   @impl true
-  def handle_info(:timeout, %{"connected" => :false}=state) do
-    Logger.info "timeout"
-    {:noreply, state, 2_000}
+  def handle_info(:timeout, %{"connected" => :true, "master" => master}=state) do
+    Logger.info "slave node connected to master node #{inspect master}"
+    {:noreply, state}
+  end
+  def handle_info(:timeout, %{"connected" => :false, "master" => master}=state) do
+    Logger.info "master #{inspect master}"
+
+    {:noreply, Map.put(state, "connected", Node.connect master), 2_000}
   end
   def handle_info(_msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE"
