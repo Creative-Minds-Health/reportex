@@ -12,8 +12,12 @@ config :xlsx,
   mongodb: File.read!("./config/secrets/mongodb.js"),
   srs_gcs: File.read!("./config/secrets/srs_gcs.json"),
   report: [
-    progress_timeout: 2_000
-  ]
+    progress_timeout: 2_000,
+    #maximum number of reports to attend in parallel per node
+    size: 5
+  ],
+  #node type :master | :slave
+  node: :master
 
 config  :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 
