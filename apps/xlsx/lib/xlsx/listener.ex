@@ -4,7 +4,7 @@ defmodule Xlsx.Listener do
 
   # API
   def start_link(state) do
-    GenServer.start_link(__MODULE__, state, name: __MODULE__)
+    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false), name: __MODULE__)
   end
 
   # Callbacks
@@ -12,7 +12,7 @@ defmodule Xlsx.Listener do
   def init(state) do
     Process.flag(:trap_exit, true)
     Logger.info "Listener is running..."
-    {:ok, state}
+    {:ok, state, 2_000}
   end
 
   @impl true
@@ -30,6 +30,10 @@ defmodule Xlsx.Listener do
   end
 
   @impl true
+  def handle_info(:timeout, %{"connected" => :false}=state) do
+    Logger.info "timeout"
+    {:noreply, state, 2_000}
+  end
   def handle_info(_msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE"
     {:noreply, state}

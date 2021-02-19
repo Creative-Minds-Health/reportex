@@ -16,6 +16,10 @@ defmodule Xlsx.Register do
   end
 
   @impl true
+  def handle_call(:register, from, state) do
+    Logger.info "Register"
+    {:reply, :ok, state}
+  end
   def handle_call(_request, _from, state) do
     reply = :ok
     {:reply, reply, state}

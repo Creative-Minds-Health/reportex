@@ -17,7 +17,8 @@ config :xlsx,
     size: 5
   ],
   #node type :master | :slave
-  node: :master
+  node: :slave,
+  master: :"enrique@"
 
 config  :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 
