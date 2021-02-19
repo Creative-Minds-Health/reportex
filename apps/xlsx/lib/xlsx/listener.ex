@@ -4,18 +4,22 @@ defmodule Xlsx.Listener do
 
   # API
   def start_link(state) do
-    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false) |> Map.put("master", Application.get_env(:xlsx, :master)), name: __MODULE__)
+    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false), name: __MODULE__)
   end
 
   # Callbacks
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
+    report_config = Application.get_env(:xlsx, :report)
     Logger.info "Listener is running..."
-    {:ok, state, 2_000}
+    {:ok, Map.put(state, "master", Application.get_env(:xlsx, :master)) |> Map.put("size", report_config[:size]), 2_000}
   end
 
   @impl true
+  def handle_call(:configure, _from, %{"size" => size}=state) do
+    {:reply, %{"size" => size}, state}
+  end
   def handle_call(_request, _from, state) do
     reply = :ok
     {:reply, reply, state}
@@ -35,8 +39,6 @@ defmodule Xlsx.Listener do
     {:noreply, state}
   end
   def handle_info(:timeout, %{"connected" => :false, "master" => master}=state) do
-    Logger.info "master #{inspect master}"
-
     {:noreply, Map.put(state, "connected", Node.connect master), 2_000}
   end
   def handle_info(_msg, state) do
