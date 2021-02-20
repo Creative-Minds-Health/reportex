@@ -18,6 +18,7 @@ defmodule Xlsx.Listener do
 
   @impl true
   def handle_call(:configure, _from, %{"size" => size}=state) do
+    :ok = Xlsx.Supervisor.start_children([:nodejs, :mongodb])
     {:reply, %{"size" => size}, state}
   end
   def handle_call(_request, _from, state) do
