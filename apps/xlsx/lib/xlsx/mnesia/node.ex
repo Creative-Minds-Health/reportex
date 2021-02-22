@@ -11,12 +11,13 @@ defmodule Xlsx.Mnesia.Node do
     :mnesia.dirty_write({XlsxNode, node, size, doing, last_report_date})
   end
 
-  def get_next_node() do
+  def next_node() do
     case :mnesia.transaction(fn -> :mnesia.select(XlsxNode, [{{XlsxNode, :"$1", :"$2", :"$3", :"$4"}, [], [:"$$"]}]) end) do
       {:atomic, []} -> :undefined
       {:atomic, list} ->
-        format_list = format_list(list, [])
-        get_next_node(Enum.sort_by(format_list, &(&1["last_report_date"])), %{})
+        format_list(list, [])
+          |> Enum.sort_by(&(&1["last_report_date"]))
+          |> next_node(%{})
     end
   end
 
@@ -28,19 +29,18 @@ defmodule Xlsx.Mnesia.Node do
     format_list(t, list ++ [Map.put(%{}, "node", node) |> Map.put("size", size) |> Map.put("doing", doing) |> Map.put("last_report_date", last_report_date)])
   end
 
-  def get_next_node([], %{}) do
+  def next_node([], %{}) do
     :undefined
   end
 
-  def get_next_node([], node) do
+  def next_node([], node) do
     node
   end
 
-  def get_next_node([h | t], node) do
+  def next_node([h|t], node) do
     case h["doing"] < h["size"] do
-      true ->
-        get_next_node(t, h)
-      _-> get_next_node(t, node)
+      true -> h
+      _-> next_node(t, node)
     end
   end
 end

@@ -46,14 +46,12 @@ defmodule Xlsx.Request do
   end
   def handle_info({:tcp, res_socket, data}, %{"socket" => socket}=state) do
     :ok=:inet.setopts(socket,[{:active, :once}])
-
-    case MNode.get_next_node() do
+    case MNode.next_node() do
       :undefined ->
         Logger.info "No hay nodos disponibles, encolar la petición"
       node ->
         Logger.info "Nodo #{inspect node}"
     end
-
     {:noreply, Map.put(state, "data", data) |> Map.put("res_socket", res_socket)}
   end
 
