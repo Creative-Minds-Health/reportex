@@ -41,7 +41,7 @@ defmodule Xlsx.Cluster.Master do
   def handle_info({:nodeup, node}, state) do
     Logger.info "#{inspect node} is connected..."
     response = GenServer.call({Slave, node}, :configure)
-    datetime = DateTime.utc_now("America/Mexico_City")
+    datetime = DateTime.utc_now()
     MNode.save_node(node, response["size"], 0, DateTime.to_unix(datetime))
     {:noreply, state}
   end
