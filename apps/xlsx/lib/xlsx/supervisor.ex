@@ -3,6 +3,7 @@ defmodule Xlsx.Supervisor do
   require Logger
 
   alias Xlsx.Mongodb.Mongodb, as: Mongodb
+  alias Xlsx.Mnesia.Node, as: MNode
 
   # API
   def start_link(opts) do
@@ -12,13 +13,15 @@ defmodule Xlsx.Supervisor do
   # Callbacks
   @impl true
   def init(args) do
-    IO.puts "args: #{inspect args}"
+
     node = Application.get_env(:xlsx, :node)
+    report_config = Application.get_env(:xlsx, :report)
     {:ok, srs_gcs} = Application.get_env(:xlsx, :srs_gcs) |> Poison.decode()
     :ok = Application.put_env(:xlsx, :srs_gcs, Map.put(srs_gcs, "key_file_name", :filename.join(File.cwd!(), Map.get(srs_gcs, "key_file_name"))))
-    IO.puts "mode: #{inspect node}"
+
     children = case node do
       :master ->
+        MNode.save_node(Node.self, report_config[:size], 0)
         [
           priv_child_spec({Socket, Xlsx.Socket, %{}}),
           priv_child_spec({Master, Xlsx.Cluster.Master, %{}})
