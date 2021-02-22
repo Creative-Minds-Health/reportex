@@ -1,4 +1,4 @@
-defmodule Xlsx.Cluster.Slave do
+defmodule Xlsx.Cluster.Listener do
   use GenServer
   require Logger
 
@@ -12,7 +12,13 @@ defmodule Xlsx.Cluster.Slave do
   def init(state) do
     Process.flag(:trap_exit, true)
     report_config = Application.get_env(:xlsx, :report)
-    {:ok, Map.put(state, "master", Application.get_env(:xlsx, :master)) |> Map.put("size", report_config[:size]), 2_000}
+    new_state = Map.put(state, "master", Application.get_env(:xlsx, :master)) |> Map.put("size", report_config[:size])
+    case Application.get_env(:xlsx, :node) do
+      :slave ->
+        {:ok, new_state, 2_000}
+      _ ->
+        {:ok, new_state}
+    end
   end
 
   @impl true
@@ -26,6 +32,12 @@ defmodule Xlsx.Cluster.Slave do
   end
 
   @impl true
+  def handle_cast({:generate_report, res_socket}, state) do
+    {:ok, pid} = Xlsx.Report.start(%{"res_socket" => res_socket, "parent" => self()})
+    {:ok, date} = DateTime.now("America/Mexico_City")
+    Process.monitor(pid)
+    {:noreply, Map.put(state, "workers", Map.put(state["workers"], pid, %{"init_date" => date}))}
+  end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
   end

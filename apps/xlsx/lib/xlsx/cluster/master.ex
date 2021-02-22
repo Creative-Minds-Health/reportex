@@ -2,7 +2,7 @@ defmodule Xlsx.Cluster.Master do
   use GenServer
   require Logger
 
-  alias Xlsx.Cluster.Slave, as: Slave
+  alias Xlsx.Cluster.Listener, as: Listener
   alias Xlsx.Mnesia.Node, as: MNode
 
   # API
@@ -40,7 +40,7 @@ defmodule Xlsx.Cluster.Master do
   @impl true
   def handle_info({:nodeup, node}, state) do
     Logger.info "#{inspect node} is connected..."
-    response = GenServer.call({Slave, node}, :configure)
+    response = GenServer.call({Listener, node}, :configure)
     MNode.save_node(node, response["size"], 0, DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
     {:noreply, state}
   end

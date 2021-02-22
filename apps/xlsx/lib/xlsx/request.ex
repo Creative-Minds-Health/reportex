@@ -3,6 +3,7 @@ defmodule Xlsx.Request do
   require Logger
 
   alias Xlsx.Mnesia.Node, as: MNode
+  alias Xlsx.Cluster.Listener, as: Listener
 
   # API
   def start(state) do
@@ -51,6 +52,7 @@ defmodule Xlsx.Request do
         Logger.info "No hay nodos disponibles, encolar la petición"
       node ->
         Logger.info "Nodo #{inspect node}"
+        GenServer.cast({Listener, node}, {:generate_report, res_socket})
     end
     {:noreply, Map.put(state, "data", data) |> Map.put("res_socket", res_socket)}
   end

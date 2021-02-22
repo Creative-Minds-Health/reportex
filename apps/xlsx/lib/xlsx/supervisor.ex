@@ -24,11 +24,12 @@ defmodule Xlsx.Supervisor do
         MNode.save_node(Node.self, report_config[:size], 0, DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
         [
           priv_child_spec({Socket, Xlsx.Socket, %{}}),
-          priv_child_spec({Master, Xlsx.Cluster.Master, %{}})
+          priv_child_spec({Master, Xlsx.Cluster.Master, %{}}),
+          priv_child_spec({Listener, Xlsx.Cluster.Listener, %{}})
         ]
       _->
         [
-          priv_child_spec({Slave, Xlsx.Cluster.Slave, %{}})
+          priv_child_spec({Listener, Xlsx.Cluster.Listener, %{}})
           # priv_child_spec({Mongo, Mongo, Mongodb.config(mongodb)}),
           # priv_child_spec({NodeJS, NodeJS, [path: js_path, pool_size: 10]})
         ]
