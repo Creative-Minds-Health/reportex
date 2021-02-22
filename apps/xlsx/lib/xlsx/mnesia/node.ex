@@ -3,7 +3,7 @@ defmodule Xlsx.Mnesia.Node do
   alias :mnesia, as: Mnesia
 
   def init() do
-    {:atomic, :ok} = Mnesia.create_table(XlsxNode, [attributes: [:node, :size, :doing]])
+    {:atomic, :ok} = Mnesia.create_table(XlsxNode, [attributes: [:node, :size, :doing, :last_report_date]])
     :ok
   end
 

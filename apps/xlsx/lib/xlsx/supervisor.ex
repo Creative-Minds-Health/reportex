@@ -21,7 +21,8 @@ defmodule Xlsx.Supervisor do
 
     children = case node do
       :master ->
-        MNode.save_node(Node.self, report_config[:size], 0)
+        {:ok, date} = DateTime.now("America/Mexico_City")
+        MNode.save_node(Node.self, report_config[:size], 0, date)
         [
           priv_child_spec({Socket, Xlsx.Socket, %{}}),
           priv_child_spec({Master, Xlsx.Cluster.Master, %{}})
