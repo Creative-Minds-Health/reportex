@@ -4,6 +4,7 @@ defmodule Xlsx.Cluster.Master do
 
   alias Xlsx.Cluster.Listener, as: Listener
   alias Xlsx.Mnesia.Node, as: MNode
+  alias Xlsx.Logger.Logger, as: XLogger
 
   # API
   def start_link(state) do
@@ -14,7 +15,7 @@ defmodule Xlsx.Cluster.Master do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    Logger.info "Master #{inspect Node.self} is running..."
+    XLogger.save_event(Node.self(), __MODULE__, :masterup, %{})
     :ok=:net_kernel.monitor_nodes(true)
     {:ok, state}
   end
@@ -39,13 +40,13 @@ defmodule Xlsx.Cluster.Master do
 
   @impl true
   def handle_info({:nodeup, node}, state) do
-    Logger.info "#{inspect node} is connected..."
+    XLogger.save_event(Node.self(), __MODULE__, :nodeup, %{"node" => node})
     response = GenServer.call({Listener, node}, :configure)
     MNode.save_node(node, response["size"], 0, DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
     {:noreply, state}
   end
   def handle_info({:nodedown, node}, state) do
-    Logger.info "Node disonnected #{inspect node}"
+    XLogger.save_event(Node.self(), __MODULE__, :nodedown, %{"node" => node})
     {:noreply, state}
   end
   def handle_info(_msg, state) do
