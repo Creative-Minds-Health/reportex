@@ -7,7 +7,7 @@ defmodule Xlsx.Mnesia.Node do
     :ok
   end
 
-  def save_node(node, size, doing) do
-    :mnesia.dirty_write({XlsxNode, node, size, doing})
+  def save_node(node, size, doing, last_report_date) do
+    :mnesia.dirty_write({XlsxNode, node, size, doing, last_report_date})
   end
 end
