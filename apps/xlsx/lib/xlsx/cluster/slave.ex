@@ -2,6 +2,8 @@ defmodule Xlsx.Cluster.Slave do
   use GenServer
   require Logger
 
+  alias Xlsx.Logger.Logger, as: XLogger
+
   # API
   def start_link(state) do
     GenServer.start_link(__MODULE__, Map.put(state, "connected", :false), name: __MODULE__)
@@ -38,6 +40,7 @@ defmodule Xlsx.Cluster.Slave do
     {:noreply, state}
   end
   def handle_info(:timeout, %{"connected" => :false, "master" => master}=state) do
+    XLogger.save_event(Node.self(), __MODULE__, :timeout, %{"master" => master})
     {:noreply, Map.put(state, "connected", Node.connect master), 2_000}
   end
   def handle_info(_msg, state) do
