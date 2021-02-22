@@ -21,16 +21,15 @@ defmodule Xlsx.Supervisor do
       :master ->
         [
           priv_child_spec({Socket, Xlsx.Socket, %{}}),
-          priv_child_spec({Register, Xlsx.Register, %{}})
+          priv_child_spec({Master, Xlsx.Cluster.Master, %{}})
         ]
       _->
         [
-          priv_child_spec({Listener, Xlsx.Listener, %{}})
+          priv_child_spec({Slave, Xlsx.Cluster.Slave, %{}})
           # priv_child_spec({Mongo, Mongo, Mongodb.config(mongodb)}),
           # priv_child_spec({NodeJS, NodeJS, [path: js_path, pool_size: 10]})
         ]
     end
-    Logger.info ["children: #{inspect children}"]
     Supervisor.init(children, strategy: :one_for_one)
   end
 

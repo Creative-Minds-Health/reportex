@@ -1,8 +1,8 @@
-defmodule Xlsx.Register do
+defmodule Xlsx.Cluster.Master do
   use GenServer
   require Logger
 
-  alias Xlsx.Listener, as: XListener
+  alias Xlsx.Cluster.Slave, as: Slave
   alias Xlsx.Mnesia.Node, as: MNode
 
   # API
@@ -14,7 +14,7 @@ defmodule Xlsx.Register do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    Logger.info "Register is running..."
+    Logger.info "Master #{inspect Node.self} is running..."
     :ok=:net_kernel.monitor_nodes(true)
     {:ok, state}
   end
@@ -39,9 +39,8 @@ defmodule Xlsx.Register do
 
   @impl true
   def handle_info({:nodeup, node}, state) do
-    Logger.info "Node connected #{inspect node}"
-    response = GenServer.call({XListener, node}, :configure)
-    Logger.info ["Response: #{inspect response}"]
+    Logger.info "#{inspect node} is connected..."
+    response = GenServer.call({Slave, node}, :configure)
     MNode.save_node(node, response["size"], 0)
     {:noreply, state}
   end

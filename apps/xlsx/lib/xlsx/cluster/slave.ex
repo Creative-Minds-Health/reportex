@@ -1,4 +1,4 @@
-defmodule Xlsx.Listener do
+defmodule Xlsx.Cluster.Slave do
   use GenServer
   require Logger
 
@@ -12,7 +12,6 @@ defmodule Xlsx.Listener do
   def init(state) do
     Process.flag(:trap_exit, true)
     report_config = Application.get_env(:xlsx, :report)
-    Logger.info "Listener is running..."
     {:ok, Map.put(state, "master", Application.get_env(:xlsx, :master)) |> Map.put("size", report_config[:size]), 2_000}
   end
 
@@ -36,7 +35,6 @@ defmodule Xlsx.Listener do
 
   @impl true
   def handle_info(:timeout, %{"connected" => :true, "master" => master}=state) do
-    Logger.info "slave node connected to master node #{inspect master}"
     {:noreply, state}
   end
   def handle_info(:timeout, %{"connected" => :false, "master" => master}=state) do
