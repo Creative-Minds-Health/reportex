@@ -6,7 +6,7 @@ defmodule Xlsx.Cluster.Listener do
 
   # API
   def start_link(state) do
-    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false), name: __MODULE__)
+    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false) |> Map.put("workers", %{}), name: __MODULE__)
   end
 
   # Callbacks
