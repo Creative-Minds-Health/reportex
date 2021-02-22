@@ -2,6 +2,8 @@ defmodule Xlsx.Request do
   use GenServer
   require Logger
 
+  alias Xlsx.Mnesia.Node, as: MNode
+
   # API
   def start(state) do
     GenServer.start(__MODULE__, state)
@@ -44,9 +46,16 @@ defmodule Xlsx.Request do
   end
   def handle_info({:tcp, res_socket, data}, %{"socket" => socket}=state) do
     :ok=:inet.setopts(socket,[{:active, :once}])
-    {:noreply, state}
-  end
 
+    case MNode.get_next_node() do
+      :undefined ->
+        Logger.info "No hay nodos disponibles, encolar la petición"
+      node ->
+        Logger.info "Nodo #{inspect node}"
+    end
+
+    {:noreply, Map.put(state, "data", data) |> Map.put("res_socket", res_socket)}
+  end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     {:noreply, state}
