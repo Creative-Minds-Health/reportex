@@ -1,4 +1,4 @@
-defmodule Xlsx.SrsWeb.Collector do
+defmodule Xlsx.Report.Collector do
   use GenServer
   require Logger
 

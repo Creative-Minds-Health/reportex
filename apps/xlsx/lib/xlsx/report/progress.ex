@@ -1,4 +1,4 @@
-defmodule Xlsx.SrsWeb.Progress do
+defmodule Xlsx.Report.Progress do
   use GenServer
   require Logger
 

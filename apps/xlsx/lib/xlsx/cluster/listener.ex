@@ -36,7 +36,7 @@ defmodule Xlsx.Cluster.Listener do
 
   @impl true
   def handle_cast({:generate_report, request}, state) do
-    {:ok, pid} = Xlsx.Report.start(Map.put(request, "parent", self()))
+    {:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "parent", self()))
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
     {:noreply, Map.put(state, "workers", Map.put(state["workers"], pid, %{"init_date" => date}))}
