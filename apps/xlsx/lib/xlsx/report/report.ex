@@ -2,8 +2,6 @@ defmodule Xlsx.Report.Report do
   use GenServer
   require Logger
 
-  alias Xlsx.Mnesia.Socket, as: MSocket
-  alias Xlsx.Decode.Query, as: DQuery
   alias Xlsx.Mongodb.Mongodb, as: Mongodb
   alias Xlsx.Report.Progress, as: Progress
   alias Xlsx.Report.Collector, as: Collector

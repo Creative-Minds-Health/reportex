@@ -6,6 +6,7 @@ defmodule Xlsx.Request do
   alias Xlsx.Decode.Query, as: DQuery
   alias Xlsx.Cluster.Listener, as: Listener
   alias Xlsx.Logger.Logger, as: XLogger
+  alias Xlsx.Mnesia.Socket, as: MSocket
 
   # API
   def start(state) do
@@ -54,7 +55,8 @@ defmodule Xlsx.Request do
     XLogger.save_event(Node.self(), __MODULE__, :tcp_message, Map.get(data_decode, "socket_id", :nill), data_decode)
     case MNode.next_node() do
       :undefined ->
-        Logger.info "No hay nodos disponibles, encolar la petición"
+        Logger.warning ["Eres el turno número... "]
+        MSocket.save_socket(res_socket, self(), data_decode, MSocket.empty_sockets(), :waiting)
       node ->
         GenServer.cast({Listener, node["node"]}, {:generate_report, %{"res_socket" => res_socket, "data" => data_decode}})
     end
