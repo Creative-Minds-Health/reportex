@@ -11,7 +11,7 @@ defmodule Xlsx.Logger.Logger do
   #}
   # event => :master_up
   def init() do
-    {:atomic, :ok} = Mnesia.create_table(XlsxLogger, [attributes: [:node, :module, :event, :data, :timestamp]])
+    {:atomic, :ok} = Mnesia.create_table(XlsxLogger, [attributes: [:node, :module, :event, :data, :timestamp], type: :bag])
     :ok
   end
 
