@@ -119,9 +119,8 @@ defmodule Xlsx.Report.Report do
     {:noreply, new_state}
   end
 
-  def handle_info(:kill, %{"collector" => collector, "progress" => progress}=state) do
-    GenServer.cast(progress, :stop)
-    GenServer.cast(collector, :stop)
+  def handle_info(:kill, state) do
+    kill_processes(["collector", "progress"], state)
     GenServer.cast(self(), :stop)
     {:noreply, state}
   end
@@ -167,5 +166,15 @@ defmodule Xlsx.Report.Report do
 
   def rows_with_out_specials(rows) do
     for item <- rows, item["special"] === :false, do: item
+  end
+
+  def kill_processes([], _state) do
+    :ok
+  end
+  def kill_processes([h | t], state) do
+    case Map.get(state, h, :nil) do
+      :nill -> kill_processes(t, state)
+      pid -> GenServer.cast(pid, :stop)
+    end
   end
 end
