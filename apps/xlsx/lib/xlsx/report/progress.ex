@@ -46,14 +46,6 @@ defmodule Xlsx.Report.Progress do
     # {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
     {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id))
     :gen_tcp.send(res_socket, json_response)
-
-    case Application.get_env(:xlsx, :node) do
-      :master ->
-        :ok = GenServer.call({Listener, Node.self}, {:end_report, Node.self})
-      _ ->
-        :ok = GenServer.call({Listener,  Application.get_env(:xlsx, :master)}, {:end_report, Node.self})
-    end
-    #GenServer.cast(self(), :stop)
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end

@@ -34,8 +34,9 @@ defmodule Xlsx.Request do
     :ok = :inet.setopts(socket,[{:active,:once}])
     {:noreply, Map.put(state, "socket", socket), 300_000};
   end
-  def handle_cast(:stop, %{"socket" => socket}=state) do
-    Logger.warning ["aquiiiiiiiiiiii"]
+  def handle_cast({:stop, node}, %{"socket" => socket}=state) do
+    MNode.decrement_doing(node)
+
     :ok=:gen_tcp.close(socket)
     Logger.warning ["sss #{inspect self()},#{inspect socket}... tcp_closed"]
     {:stop, :normal, state}
@@ -46,6 +47,12 @@ defmodule Xlsx.Request do
   end
 
   @impl true
+  def handle_info({:tcp_closed, _reason}, %{"res_socket" => res_socket, "node" => node, "report" => report}=state) do
+    GenServer.cast({Listener, node}, {:kill, report})
+    GenServer.cast(self(), :stop)
+    {:noreply, state}
+  end
+
   def handle_info({:tcp_closed, _reason}, state) do
     GenServer.cast(self(), :stop)
     {:noreply, state}
@@ -54,14 +61,16 @@ defmodule Xlsx.Request do
     :ok=:inet.setopts(socket,[{:active, :once}])
     data_decode = Poison.decode!(data) |> DQuery.decode()
     XLogger.save_event(Node.self(), __MODULE__, :tcp_message, Map.get(data_decode, "socket_id", :nill), data_decode)
-    case MNode.next_node() do
+    new_state = case MNode.next_node() do
       :undefined ->
         Logger.warning ["Eres el turno número... "]
         MSocket.save_socket(res_socket, self(), data_decode, MSocket.empty_sockets(), :waiting)
+        Map.put(state, "data", data) |> Map.put("res_socket", res_socket)
       node ->
-        GenServer.cast({Listener, node["node"]}, {:generate_report, %{"res_socket" => res_socket, "data" => data_decode, "request" => self()}})
+        pid = GenServer.call({Listener, node["node"]}, {:generate_report, %{"res_socket" => res_socket, "data" => data_decode, "request" => self()}})
+        Map.put(state, "data", data) |> Map.put("res_socket", res_socket) |> Map.put("node", node["node"]) |> Map.put("report", pid)
     end
-    {:noreply, Map.put(state, "data", data) |> Map.put("res_socket", res_socket)}
+    {:noreply, new_state}
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do

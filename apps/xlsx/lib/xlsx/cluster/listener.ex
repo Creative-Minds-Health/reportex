@@ -26,12 +26,12 @@ defmodule Xlsx.Cluster.Listener do
   end
 
   @impl true
-  def handle_call({:end_report, node}, from, state) do
-    MNode.decrement_doing(node)
-
-    {:reply, :ok, state}
+  def handle_call({:generate_report, request}, state) do
+    {:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))
+    {:ok, date} = DateTime.now("America/Mexico_City")
+    Process.monitor(pid)
+    {:reply, pid, Map.put(state, "reports", Map.put(state["reports"], pid, %{"init_date" => date, "request" => request["request"]}))}
   end
-
   def handle_call(:configure, _from, %{"size" => size}=state) do
     # :ok = Xlsx.Supervisor.start_children([:nodejs, :mongodb])
     {:reply, %{"size" => size}, state}
@@ -42,11 +42,9 @@ defmodule Xlsx.Cluster.Listener do
   end
 
   @impl true
-  def handle_cast({:generate_report, request}, state) do
-    {:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))
-    {:ok, date} = DateTime.now("America/Mexico_City")
-    Process.monitor(pid)
-    {:noreply, Map.put(state, "reports", Map.put(state["reports"], pid, %{"init_date" => date, "request" => request["request"]}))}
+  def handle_cast({:kill, report}, state) do
+    send(report, :kill)
+    {:stop, :normal, state}
   end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
@@ -57,12 +55,8 @@ defmodule Xlsx.Cluster.Listener do
 
   @impl true
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"reports" => reports}=state) do
-    Logger.warning ["pid #{inspect pid}"]
-    Logger.warning ["reports listener #{inspect reports}"]
     report = reports[pid];
-    Logger.warning ["down listener #{inspect report}"]
-    # send({report["request"], Node.self}, :stop)
-    GenServer.cast(report["request"], :stop)
+    GenServer.cast(report["request"], {:stop, Node.self})
     {:noreply, state}
   end
 

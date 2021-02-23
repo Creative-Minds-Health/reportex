@@ -46,6 +46,7 @@ defmodule Xlsx.Socket do
 
   @impl true
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
+    Logger.info "se murio el request"
     {:noreply, state}
   end
   def handle_info(_msg, state) do

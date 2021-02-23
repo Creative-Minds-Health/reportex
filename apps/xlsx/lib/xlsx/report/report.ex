@@ -43,9 +43,6 @@ defmodule Xlsx.Report.Report do
     {:noreply, new_state}
   end
   def handle_cast(:stop, state) do
-    Logger.info "stop report"
-    # :ok=:gen_tcp.close(socket)
-    # Logger.warning ["#{inspect self()},#{inspect socket}... tcp_closed"]
     {:stop, :normal, state}
   end
 
@@ -123,10 +120,8 @@ defmodule Xlsx.Report.Report do
   end
 
   def handle_info(:kill, %{"collector" => collector, "progress" => progress}=state) do
-    Logger.info "kill report"
     GenServer.cast(progress, :stop)
     GenServer.cast(collector, :stop)
-    # GenServer.cast(request, :stop)
     GenServer.cast(self(), :stop)
     {:noreply, state}
   end
