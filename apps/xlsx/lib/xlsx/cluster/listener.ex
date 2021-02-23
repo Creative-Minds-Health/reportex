@@ -26,7 +26,7 @@ defmodule Xlsx.Cluster.Listener do
   end
 
   @impl true
-  def handle_call({:generate_report, request}, state) do
+  def handle_call({:generate_report, request}, from, state) do
     {:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
@@ -44,7 +44,7 @@ defmodule Xlsx.Cluster.Listener do
   @impl true
   def handle_cast({:kill, report}, state) do
     send(report, :kill)
-    {:stop, :normal, state}
+    {:noreply, state}
   end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
