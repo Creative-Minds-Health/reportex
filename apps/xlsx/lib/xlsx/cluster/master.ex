@@ -15,7 +15,7 @@ defmodule Xlsx.Cluster.Master do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    XLogger.save_event(Node.self(), __MODULE__, :masterup, %{})
+    XLogger.save_event(Node.self(), __MODULE__, :masterup, :nill, %{})
     :ok=:net_kernel.monitor_nodes(true)
     {:ok, state}
   end
@@ -40,13 +40,13 @@ defmodule Xlsx.Cluster.Master do
 
   @impl true
   def handle_info({:nodeup, node}, state) do
-    XLogger.save_event(Node.self(), __MODULE__, :nodeup, %{"node" => node})
+    XLogger.save_event(Node.self(), __MODULE__, :nodeup, :nill, %{"node" => node})
     response = GenServer.call({Listener, node}, :configure)
     MNode.save_node(node, response["size"], 0, DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
     {:noreply, state}
   end
   def handle_info({:nodedown, node}, state) do
-    XLogger.save_event(Node.self(), __MODULE__, :nodedown, %{"node" => node})
+    XLogger.save_event(Node.self(), __MODULE__, :nodedown, :nill, %{"node" => node})
     {:noreply, state}
   end
   def handle_info(_msg, state) do

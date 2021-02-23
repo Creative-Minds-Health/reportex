@@ -5,6 +5,7 @@ defmodule Xlsx.Request do
   alias Xlsx.Mnesia.Node, as: MNode
   alias Xlsx.Decode.Query, as: DQuery
   alias Xlsx.Cluster.Listener, as: Listener
+  alias Xlsx.Logger.Logger, as: XLogger
 
   # API
   def start(state) do
@@ -27,6 +28,7 @@ defmodule Xlsx.Request do
   @impl true
   def handle_cast(:listener, %{"lsocket" => lsocket, "parent" => parent}=state) do
     {:ok, socket} = :gen_tcp.accept(lsocket)
+    XLogger.save_event(Node.self(), __MODULE__, :nill, :tcp_accepted, %{})
     GenServer.cast(parent, :create_child)
     :ok = :inet.setopts(socket,[{:active,:once}])
     {:noreply, Map.put(state, "socket", socket), 300_000};
@@ -49,11 +51,11 @@ defmodule Xlsx.Request do
   def handle_info({:tcp, res_socket, data}, %{"socket" => socket}=state) do
     :ok=:inet.setopts(socket,[{:active, :once}])
     data_decode = Poison.decode!(data) |> DQuery.decode()
+    XLogger.save_event(Node.self(), __MODULE__, :tcp_message, Map.get(data_decode, "socket_id", :nill), data_decode)
     case MNode.next_node() do
       :undefined ->
         Logger.info "No hay nodos disponibles, encolar la petición"
       node ->
-        Logger.info "Nodo #{inspect node}"
         GenServer.cast({Listener, node["node"]}, {:generate_report, %{"res_socket" => res_socket, "data" => data_decode}})
     end
     {:noreply, Map.put(state, "data", data) |> Map.put("res_socket", res_socket)}

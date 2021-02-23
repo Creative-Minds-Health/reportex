@@ -9,6 +9,7 @@ defmodule Xlsx.Report.Report do
   alias Xlsx.Report.Collector, as: Collector
   alias Xlsx.Report.Worker, as: Worker
   alias Xlsx.Mnesia.Worker, as: MWorker
+  alias Xlsx.Logger.Logger, as: XLogger
 
   # API
   def start(state) do
@@ -19,7 +20,6 @@ defmodule Xlsx.Report.Report do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    Logger.info "Reportex GenServer is running..."
     GenServer.cast(self(), :start)
     {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0)}
   end
@@ -36,13 +36,13 @@ defmodule Xlsx.Report.Report do
 
   @impl true
   def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
-    Logger.warning "start"
     {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
     Process.monitor(progress)
-
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
+    new_state = Map.put(state, "record", record) |> Map.put("progress", progress)
+    XLogger.save_event(Node.self(), __MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
     send(self(), {:count, Mongodb.count_query(data, record["collection"])})
-    {:noreply, Map.put(state, "data", data) |> Map.put("record", record) |> Map.put("progress", progress) |> Map.put("socket_id", data["socket_id"])}
+    {:noreply, new_state}
   end
   def handle_cast(:stop, %{"socket" => socket}=state) do
     :ok=:gen_tcp.close(socket)
@@ -65,7 +65,6 @@ defmodule Xlsx.Report.Report do
     {:noreply, state}
   end
   def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
-    Logger.warning "count #{inspect total}"
     send(progress, {:update_total, total})
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
@@ -77,8 +76,10 @@ defmodule Xlsx.Report.Report do
       :ok = MWorker.dirty_write(pid, :waiting, date),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
+    new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
+    XLogger.save_event(Node.self(), __MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
     send(self(), {:run, page * record["config"]["documents"]})
-    {:noreply, Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
+    {:noreply, new_state}
   end
 
   def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip}=state) when skip >= total do
