@@ -6,7 +6,7 @@ defmodule Xlsx.Cluster.Listener do
 
   # API
   def start_link(state) do
-    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false), name: __MODULE__)
+    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false) |> Map.put("workers", %{}), name: __MODULE__)
   end
 
   # Callbacks
@@ -17,6 +17,7 @@ defmodule Xlsx.Cluster.Listener do
     new_state = Map.put(state, "master", Application.get_env(:xlsx, :master)) |> Map.put("size", report_config[:size])
     case Application.get_env(:xlsx, :node) do
       :slave ->
+        :ok=:net_kernel.monitor_nodes(true)
         {:ok, new_state, 2_000}
       _ ->
         {:ok, new_state}
@@ -48,11 +49,26 @@ defmodule Xlsx.Cluster.Listener do
   end
 
   @impl true
+  def handle_info({:nodeup, node}, state) do
+    # XLogger.save_event(Node.self(), __MODULE__, :nodeup, %{"node" => node})
+    # response = GenServer.call({Listener, node}, :configure)
+    # MNode.save_node(node, response["size"], 0, DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
+    {:noreply, state}
+  end
+  def handle_info({:nodedown, node}, %{"connected" => :true, "master" => node}=state) do
+    case Application.get_env(:xlsx, :node) do
+      :slave ->
+        Logger.error ["nodedown #{inspect node} "]
+        {:noreply, Map.put(state, "connected", :false), 2_000}
+      _->
+        {:noreply, state}
+    end
+  end
   def handle_info(:timeout, %{"connected" => :true, "master" => master}=state) do
     {:noreply, state}
   end
   def handle_info(:timeout, %{"connected" => :false, "master" => master}=state) do
-    XLogger.save_event(Node.self(), __MODULE__, :timeout, %{"master" => master})
+    Logger.error ["timeout to connect #{inspect master}"]
     {:noreply, Map.put(state, "connected", Node.connect master), 2_000}
   end
   def handle_info(_msg, state) do
