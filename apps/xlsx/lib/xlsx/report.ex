@@ -20,7 +20,8 @@ defmodule Xlsx.Report do
   def init(state) do
     Process.flag(:trap_exit, true)
     Logger.info "Reportex GenServer is running..."
-    GenServer.cast(self(), :listener)
+    # GenServer.cast(self(), :listener)
+    GenServer.cast(self(), :start)
     {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0)}
   end
 
@@ -36,13 +37,13 @@ defmodule Xlsx.Report do
 
   @impl true
   def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
-    data_decode = Poison.decode!(data) |> DQuery.decode()
-    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data_decode["socket_id"]})
+    Logger.warning "start"
+    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
     Process.monitor(progress)
 
-    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
-    send(self(), {:count, Mongodb.count_query(data_decode, record["collection"])})
-    {:noreply, Map.put(state, "data", data_decode) |> Map.put("record", record) |> Map.put("progress", progress) |> Map.put("socket_id", data_decode["socket_id"])}
+    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
+    send(self(), {:count, Mongodb.count_query(data, record["collection"])})
+    {:noreply, Map.put(state, "data", data) |> Map.put("record", record) |> Map.put("progress", progress) |> Map.put("socket_id", data["socket_id"])}
   end
   def handle_cast(:listener, %{"lsocket" => lsocket, "parent" => parent}=state) do
     {:ok, socket} = :gen_tcp.accept(lsocket)
@@ -68,7 +69,7 @@ defmodule Xlsx.Report do
   end
 
   def handle_info({:count, 0}, %{"progress" => progress, "socket_id" => socket_id, "res_socket" => res_socket}=state) do
-
+    Logger.warning "count 0"
     {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", socket_id))
     :gen_tcp.send(res_socket, response)
     GenServer.cast(progress, :stop)
@@ -76,6 +77,7 @@ defmodule Xlsx.Report do
     {:noreply, state}
   end
   def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
+    Logger.warning "count #{inspect total}"
     send(progress, {:update_total, total})
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
@@ -90,23 +92,21 @@ defmodule Xlsx.Report do
     send(self(), {:run, page * record["config"]["documents"]})
     {:noreply, Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
   end
-  def handle_info({:socket_turn, 1}, %{"res_socket" => res_socket, "data" => data}=state) do
-
-    MSocket.save_socket(res_socket, self(), data, 1, :doing)
-    GenServer.cast(self(), :start)
-    {:noreply, state}
-  end
-  def handle_info({:socket_turn, turn}, %{"res_socket" => res_socket, "data" => data}=state) do
-    Logger.warning ["Eres el turno número... "]
-    MSocket.save_socket(res_socket, self(), data, turn, :waiting)
-    # save_socket(socket, data, turn, date);
-    # creo que aquí debo empezar a ejecutar la funcion que mande el progreso de turno a los sockets encolados
-    {:noreply, state}
-  end
+  # def handle_info({:socket_turn, 1}, %{"res_socket" => res_socket, "data" => data}=state) do
+  #
+  #   MSocket.save_socket(res_socket, self(), data, 1, :doing)
+  #   GenServer.cast(self(), :start)
+  #   {:noreply, state}
+  # end
+  # def handle_info({:socket_turn, turn}, %{"res_socket" => res_socket, "data" => data}=state) do
+  #   Logger.warning ["Eres el turno número... "]
+  #   MSocket.save_socket(res_socket, self(), data, turn, :waiting)
+  #   {:noreply, state}
+  # end
 
   def handle_info({:tcp, res_socket, data}, %{"socket" => socket}=state) do
     :ok=:inet.setopts(socket,[{:active, :once}])
-    send(self(), {:socket_turn, MSocket.empty_sockets()})
+    # send(self(), {:socket_turn, MSocket.empty_sockets()})
     {:noreply, Map.put(state, "res_socket", res_socket) |> Map.put("data", data)}
   end
 

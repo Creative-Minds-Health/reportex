@@ -12,7 +12,7 @@ defmodule Xlsx.Supervisor do
 
   # Callbacks
   @impl true
-  def init(args) do
+  def init(_args) do
 
     node = Application.get_env(:xlsx, :node)
     report_config = Application.get_env(:xlsx, :report)
@@ -24,17 +24,20 @@ defmodule Xlsx.Supervisor do
         MNode.save_node(Node.self, report_config[:size], 0, DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
         [
           priv_child_spec({Socket, Xlsx.Socket, %{}}),
-          priv_child_spec({Master, Xlsx.Cluster.Master, %{}}),
-          priv_child_spec({Listener, Xlsx.Cluster.Listener, %{}})
-        ]
-      _->
-        [
-          priv_child_spec({Listener, Xlsx.Cluster.Listener, %{}})
-          # priv_child_spec({Mongo, Mongo, Mongodb.config(mongodb)}),
-          # priv_child_spec({NodeJS, NodeJS, [path: js_path, pool_size: 10]})
+          priv_child_spec({Master, Xlsx.Cluster.Master, %{}})
         ]
     end
-    Supervisor.init(children, strategy: :one_for_one)
+
+    {:ok, mongodb} = Application.get_env(:xlsx, :mongodb) |> Poison.decode()
+    js_path = :filename.join(:code.priv_dir(:xlsx), "lib/js")
+    
+    default = [
+      priv_child_spec({Mongo, Mongo, Mongodb.config(mongodb)}),
+      priv_child_spec({NodeJS, NodeJS, [path: js_path, pool_size: 10]}),
+      priv_child_spec({Listener, Xlsx.Cluster.Listener, %{}})
+    ]
+
+    Supervisor.init(children ++ default, strategy: :one_for_one)
   end
 
   def start_children(list) do

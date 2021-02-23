@@ -3,6 +3,7 @@ defmodule Xlsx.Request do
   require Logger
 
   alias Xlsx.Mnesia.Node, as: MNode
+  alias Xlsx.Decode.Query, as: DQuery
   alias Xlsx.Cluster.Listener, as: Listener
 
   # API
@@ -47,12 +48,13 @@ defmodule Xlsx.Request do
   end
   def handle_info({:tcp, res_socket, data}, %{"socket" => socket}=state) do
     :ok=:inet.setopts(socket,[{:active, :once}])
+    data_decode = Poison.decode!(data) |> DQuery.decode()
     case MNode.next_node() do
       :undefined ->
         Logger.info "No hay nodos disponibles, encolar la petición"
       node ->
         Logger.info "Nodo #{inspect node}"
-        GenServer.cast({Listener, node["node"]}, {:generate_report, res_socket})
+        GenServer.cast({Listener, node["node"]}, {:generate_report, %{"res_socket" => res_socket, "data" => data_decode}})
     end
     {:noreply, Map.put(state, "data", data) |> Map.put("res_socket", res_socket)}
   end

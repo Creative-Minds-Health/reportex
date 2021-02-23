@@ -26,7 +26,7 @@ defmodule Xlsx.Cluster.Listener do
 
   @impl true
   def handle_call(:configure, _from, %{"size" => size}=state) do
-    :ok = Xlsx.Supervisor.start_children([:nodejs, :mongodb])
+    # :ok = Xlsx.Supervisor.start_children([:nodejs, :mongodb])
     {:reply, %{"size" => size}, state}
   end
   def handle_call(_request, _from, state) do
@@ -35,8 +35,8 @@ defmodule Xlsx.Cluster.Listener do
   end
 
   @impl true
-  def handle_cast({:generate_report, res_socket}, state) do
-    {:ok, pid} = Xlsx.Report.start(%{"res_socket" => res_socket, "parent" => self()})
+  def handle_cast({:generate_report, request}, state) do
+    {:ok, pid} = Xlsx.Report.start(Map.put(request, "parent", self()))
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
     {:noreply, Map.put(state, "workers", Map.put(state["workers"], pid, %{"init_date" => date}))}
