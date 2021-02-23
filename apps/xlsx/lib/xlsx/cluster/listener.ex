@@ -57,7 +57,7 @@ defmodule Xlsx.Cluster.Listener do
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"reports" => reports}=state) do
     report = reports[pid];
     GenServer.cast(report["request"], {:stop, Node.self})
-    {:noreply, state}
+    {:noreply, Map.put(state, "reports", Map.delete(state["reports"], pid))}
   end
 
   def handle_info({:nodeup, node}, state) do

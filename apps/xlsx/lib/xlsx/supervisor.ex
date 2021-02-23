@@ -26,11 +26,13 @@ defmodule Xlsx.Supervisor do
           priv_child_spec({Socket, Xlsx.Socket, %{}}),
           priv_child_spec({Master, Xlsx.Cluster.Master, %{}})
         ]
+        _->
+          []
     end
 
     {:ok, mongodb} = Application.get_env(:xlsx, :mongodb) |> Poison.decode()
     js_path = :filename.join(:code.priv_dir(:xlsx), "lib/js")
-    
+
     default = [
       priv_child_spec({Mongo, Mongo, Mongodb.config(mongodb)}),
       priv_child_spec({NodeJS, NodeJS, [path: js_path, pool_size: 10]}),
