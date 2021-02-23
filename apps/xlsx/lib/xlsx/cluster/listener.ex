@@ -3,10 +3,11 @@ defmodule Xlsx.Cluster.Listener do
   require Logger
 
   alias Xlsx.Logger.Logger, as: XLogger
+  alias Xlsx.Mnesia.Node, as: MNode
 
   # API
   def start_link(state) do
-    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false) |> Map.put("workers", %{}), name: __MODULE__)
+    GenServer.start_link(__MODULE__, Map.put(state, "connected", :false) |> Map.put("reports", %{}), name: __MODULE__)
   end
 
   # Callbacks
@@ -25,6 +26,12 @@ defmodule Xlsx.Cluster.Listener do
   end
 
   @impl true
+  def handle_call({:end_report, node}, from, state) do
+    MNode.decrement_doing(node)
+
+    {:reply, :ok, state}
+  end
+
   def handle_call(:configure, _from, %{"size" => size}=state) do
     # :ok = Xlsx.Supervisor.start_children([:nodejs, :mongodb])
     {:reply, %{"size" => size}, state}
@@ -36,10 +43,10 @@ defmodule Xlsx.Cluster.Listener do
 
   @impl true
   def handle_cast({:generate_report, request}, state) do
-    {:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "parent", self()))
+    {:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
-    {:noreply, Map.put(state, "workers", Map.put(state["workers"], pid, %{"init_date" => date}))}
+    {:noreply, Map.put(state, "reports", Map.put(state["reports"], pid, %{"init_date" => date, "request" => request["request"]}))}
   end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
@@ -49,6 +56,16 @@ defmodule Xlsx.Cluster.Listener do
   end
 
   @impl true
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"reports" => reports}=state) do
+    Logger.warning ["pid #{inspect pid}"]
+    Logger.warning ["reports listener #{inspect reports}"]
+    report = reports[pid];
+    Logger.warning ["down listener #{inspect report}"]
+    # send({report["request"], Node.self}, :stop)
+    GenServer.cast(report["request"], :stop)
+    {:noreply, state}
+  end
+
   def handle_info({:nodeup, node}, state) do
     # XLogger.save_event(Node.self(), __MODULE__, :nodeup, %{"node" => node})
     # response = GenServer.call({Listener, node}, :configure)

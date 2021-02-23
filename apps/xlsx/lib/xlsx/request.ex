@@ -35,8 +35,9 @@ defmodule Xlsx.Request do
     {:noreply, Map.put(state, "socket", socket), 300_000};
   end
   def handle_cast(:stop, %{"socket" => socket}=state) do
+    Logger.warning ["aquiiiiiiiiiiii"]
     :ok=:gen_tcp.close(socket)
-    Logger.warning ["#{inspect self()},#{inspect socket}... tcp_closed"]
+    Logger.warning ["sss #{inspect self()},#{inspect socket}... tcp_closed"]
     {:stop, :normal, state}
   end
 
@@ -58,7 +59,7 @@ defmodule Xlsx.Request do
         Logger.warning ["Eres el turno número... "]
         MSocket.save_socket(res_socket, self(), data_decode, MSocket.empty_sockets(), :waiting)
       node ->
-        GenServer.cast({Listener, node["node"]}, {:generate_report, %{"res_socket" => res_socket, "data" => data_decode}})
+        GenServer.cast({Listener, node["node"]}, {:generate_report, %{"res_socket" => res_socket, "data" => data_decode, "request" => self()}})
     end
     {:noreply, Map.put(state, "data", data) |> Map.put("res_socket", res_socket)}
   end

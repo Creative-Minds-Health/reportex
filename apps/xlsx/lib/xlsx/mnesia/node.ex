@@ -24,8 +24,15 @@ defmodule Xlsx.Mnesia.Node do
     end
   end
 
+  def decrement_doing(node) do
+    case :mnesia.transaction(fn -> :mnesia.match_object({XlsxNode, node, :_, :_, :_}) end) do
+      {:atomic, []} -> :ok
+      {:atomic, [{XlsxNode, _id, size, doing, last_report_date}|_t]} ->
+        :mnesia.dirty_write({XlsxNode, node, size, doing - 1, last_report_date})
+    end
+  end
+
   def next_node() do
-    Logger.info "next_nodenext_node"
     case :mnesia.transaction(fn -> :mnesia.select(XlsxNode, [{{XlsxNode, :"$1", :"$2", :"$3", :"$4"}, [], [:"$$"]}]) end) do
       {:atomic, []} -> :undefined
       {:atomic, list} ->
