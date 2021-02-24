@@ -38,7 +38,6 @@ defmodule Xlsx.Request do
     MNode.decrement_doing(node)
 
     :ok=:gen_tcp.close(socket)
-    Logger.warning ["sss #{inspect self()},#{inspect socket}... tcp_closed"]
     {:stop, :normal, state}
   end
 
@@ -47,6 +46,11 @@ defmodule Xlsx.Request do
   end
 
   @impl true
+  def handle_info({:start_listener, data}, state) do
+    pid = GenServer.call({Listener, data["node"]}, {:generate_report, %{"res_socket" => data["socket"], "data" => data["data"], "request" => self()}})
+
+    {:noreply, Map.put(state, "data", data["data"]) |> Map.put("res_socket", data["socket"]) |> Map.put("node", data["node"]) |> Map.put("report", pid)}
+  end
   def handle_info({:tcp_closed, _reason}, %{"res_socket" => res_socket, "node" => node, "report" => report}=state) do
     GenServer.cast({Listener, node}, {:kill, report})
     GenServer.cast(self(), :stop)

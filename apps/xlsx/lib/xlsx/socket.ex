@@ -5,6 +5,7 @@ defmodule Xlsx.Socket do
   alias Xlsx.Mnesia.Socket, as: MSocket
   alias Xlsx.SrsWeb.ProgressTurn, as: ProgressTurn
   alias Xlsx.Mnesia.Worker, as: MWorker
+  alias Xlsx.Mnesia.Node, as: MNode
 
   # API
   def start_link(state) do
@@ -45,8 +46,43 @@ defmodule Xlsx.Socket do
   end
 
   @impl true
-  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
-    Logger.info "se murio el request"
+  def handle_info({:next, %{}}, state) do
+    # Logger.warning ["Ya no hay nada"]
+    {:noreply, state}
+  end
+
+  def handle_info({:next, {_, socket, request, data, _turno, _date, _status}}, state) do
+    # GenServer.cast(request, :start)
+
+    case MNode.next_node() do
+      :undefined ->
+        Logger.info "next 1"
+        []
+      node ->
+        :ok = MSocket.update_status(socket, {:waiting, :doing})
+        :ok = MSocket.update_turns()
+        send(request, {:start_listener, %{"socket" => socket, "data" => data, "node" => node["node"]}})
+    end
+    {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+    #Se valida si el socket que se murio es el que estaba trabajando
+    case MSocket.check_kill_pid(pid) do
+      {:atomic, []} ->
+        send(self(), {:next, get_next_socket()})
+      {:atomic, [{_, socket, _request, _, _, _, status}|_t]} ->
+        :ok=:gen_tcp.close(socket)
+        case status do
+          :doing ->
+            MSocket.delete(socket)
+            send(self(), {:next, get_next_socket()})
+          :waiting ->
+            MSocket.delete(socket)
+            :ok = MSocket.update_turns()
+        end
+    end
+
     {:noreply, state}
   end
   def handle_info(_msg, state) do
@@ -58,5 +94,12 @@ defmodule Xlsx.Socket do
   def terminate(_reason, state) do
     Logger.warning ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state["project"]]
     :ok
+  end
+
+  def get_next_socket() do
+    case MSocket.next_socket() do
+      {:ok, socket} -> socket
+      _ -> %{}
+    end
   end
 end

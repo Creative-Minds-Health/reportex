@@ -69,7 +69,7 @@ defmodule Xlsx.Report.Report do
     for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
       {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
       Process.monitor(pid),
-      :ok = MWorker.dirty_write(pid, :waiting, date),
+      :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
     new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
@@ -121,13 +121,14 @@ defmodule Xlsx.Report.Report do
 
   def handle_info(:kill, state) do
     kill_processes(["collector", "progress"], state)
+    kill_workers(MWorker.get_workers(self()))
     GenServer.cast(self(), :stop)
     {:noreply, state}
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     {:atomic, :ok} = MWorker.delete(pid)
-    case MWorker.empty_workers() do
+    case MWorker.empty_workers(self()) do
       :true ->
         GenServer.cast(collector, :generate)
       _ -> []
@@ -166,6 +167,14 @@ defmodule Xlsx.Report.Report do
 
   def rows_with_out_specials(rows) do
     for item <- rows, item["special"] === :false, do: item
+  end
+
+  def kill_workers([]) do
+    :ok
+  end
+  def kill_workers([{XlsxWorker, pid, _status, _date, report} | t]) do
+    {:atomic, :ok} = MWorker.delete(pid)
+    kill_workers(t)
   end
 
   def kill_processes([], _state) do
