@@ -54,7 +54,6 @@ defmodule Xlsx.Report.Progress do
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
   def handle_info({:documents, new_documents}, %{"documents" => documents}=state) do
-    Logger.info ["Actualizar documentops: #{inspect new_documents + documents}"]
     {:noreply, Map.put(state, "documents", new_documents + documents), 500}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
@@ -70,7 +69,8 @@ defmodule Xlsx.Report.Progress do
     {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, response} = Poison.encode(Map.put(map, "total", total) |> Map.put("status", "doing") |> Map.put("socket_id", socket_id) |> Map.put("date_last_update", format_date(date)))
     Logger.info ["#{inspect response}"]
-    :gen_tcp.send(res_socket, response)
+    LibLogger.send(response)
+    #:gen_tcp.send(res_socket, response)
     {:noreply, state, progress_timeout}
   end
   def handle_info(_msg, state) do

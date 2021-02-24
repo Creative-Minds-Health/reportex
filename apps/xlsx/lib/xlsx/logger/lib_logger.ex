@@ -14,6 +14,10 @@ defmodule Xlsx.Logger.LibLogger do
     GenServer.cast({XLogger, get_node()}, {:save, Node.self, module, event, socket_id, data})
   end
 
+  def send(message, res_socket) do
+    GenServer.cast({XLogger, get_node()}, {:send, message, res_socket})
+  end
+
   defp get_node() do
     case Application.get_env(:xlsx, :node) do
       :slave -> Application.get_env(:xlsx, :master)
