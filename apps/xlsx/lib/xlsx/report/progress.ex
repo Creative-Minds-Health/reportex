@@ -45,8 +45,9 @@ defmodule Xlsx.Report.Progress do
       |> Map.put("expires", Map.get(map, "expires", 1))
     # {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
     {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id))
-    :gen_tcp.send(res_socket, json_response)
+    #:gen_tcp.send(res_socket, json_response)
     LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
+    LibLogger.send_progress(res_socket, json_response)
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end
