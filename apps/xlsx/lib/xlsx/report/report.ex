@@ -42,7 +42,8 @@ defmodule Xlsx.Report.Report do
     send(self(), {:count, Mongodb.count_query(data, record["collection"])})
     {:noreply, new_state}
   end
-  def handle_cast(:stop, state) do
+  def handle_cast(:stop, %{"data" => data}=state) do
+    LibLogger.save_event(__MODULE__, :kill_report, Map.get(data, "socket_id", :nill), %{})
     {:stop, :normal, state}
   end
 

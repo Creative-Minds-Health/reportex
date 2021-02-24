@@ -18,7 +18,7 @@ defmodule Xlsx.Request do
   def init(state) do
     Process.flag(:trap_exit, true)
     GenServer.cast(self(), :listener)
-    {:ok, state}
+    {:ok, Map.put(state, "data", %{})}
   end
 
   @impl true
@@ -34,9 +34,9 @@ defmodule Xlsx.Request do
     :ok = :inet.setopts(socket,[{:active,:once}])
     {:noreply, Map.put(state, "socket", socket), 300_000};
   end
-  def handle_cast({:stop, node}, %{"socket" => socket}=state) do
+  def handle_cast({:stop, node}, %{"socket" => socket, "data" => data}=state) do
+    LibLogger.save_event(__MODULE__, :kill_request, Map.get(data, "socket_id", :nill), %{})
     MNode.decrement_doing(node)
-
     :ok=:gen_tcp.close(socket)
     {:stop, :normal, state}
   end
@@ -69,10 +69,10 @@ defmodule Xlsx.Request do
       :undefined ->
         Logger.warning ["Eres el turno número... "]
         MSocket.save_socket(res_socket, self(), data_decode, MSocket.empty_sockets(), :waiting)
-        Map.put(state, "data", data) |> Map.put("res_socket", res_socket)
+        Map.put(state, "data", data_decode) |> Map.put("res_socket", res_socket)
       node ->
         pid = GenServer.call({Listener, node["node"]}, {:generate_report, %{"res_socket" => res_socket, "data" => data_decode, "request" => self()}})
-        Map.put(state, "data", data) |> Map.put("res_socket", res_socket) |> Map.put("node", node["node"]) |> Map.put("report", pid)
+        Map.put(state, "data", data_decode) |> Map.put("res_socket", res_socket) |> Map.put("node", node["node"]) |> Map.put("report", pid)
     end
     {:noreply, new_state}
   end
