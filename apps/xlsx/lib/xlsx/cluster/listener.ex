@@ -27,7 +27,8 @@ defmodule Xlsx.Cluster.Listener do
   @impl true
   def handle_call({:generate_report, request}, from, state) do
     {:ok, pid} = case {request["data"]["project"], request["data"]["report_key"]} do
-      {"SRS", "egresses"} -> Xlsx.SrsWeb.Egress.Report.start(Map.put(request, "listener", self()))
+      {"srs", "egresses"} -> Xlsx.SrsWeb.Egress.Report.start(Map.put(request, "listener", self()))
+      {"srs", "suive"} -> Xlsx.SrsWeb.Suive.Report.start(Map.put(request, "listener", self()))
       _-> :nill
     end
     #{:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))

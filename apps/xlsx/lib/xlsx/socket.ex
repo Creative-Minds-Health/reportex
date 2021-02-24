@@ -17,7 +17,7 @@ defmodule Xlsx.Socket do
   def init(state) do
     Process.flag(:trap_exit, true)
     Logger.info "GenServer is running..."
-    case :gen_tcp.listen(4_000, [:binary, {:packet, :raw}, {:active, false}, {:reuseaddr, true}] ) do
+    case :gen_tcp.listen(4_000, [:binary, {:packet, :raw}, {:active, false}, {:reuseaddr, true}, {:buffer, 5120}] ) do
       {:ok,lsocket} ->
         GenServer.cast(__MODULE__, :create_child)
         {:ok, Map.put(state, "lsocket", lsocket)}

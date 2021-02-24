@@ -18,7 +18,6 @@ defmodule Xlsx.SrsWeb.Egress.Report do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    Logger.info ["init en reporrt"]
     GenServer.cast(self(), :start)
     {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0)}
   end
