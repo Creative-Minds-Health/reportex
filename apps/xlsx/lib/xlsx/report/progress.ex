@@ -54,6 +54,7 @@ defmodule Xlsx.Report.Progress do
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
   def handle_info({:documents, new_documents}, %{"documents" => documents}=state) do
+    Logger.info ["Actualizar documentops: #{inspect new_documents + documents}"]
     {:noreply, Map.put(state, "documents", new_documents + documents), 500}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
@@ -62,13 +63,13 @@ defmodule Xlsx.Report.Progress do
   def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total, "socket_id" => socket_id}=state) do
     map = case status do
       :waiting -> %{"message" => "Calculando progreso"}
-      :working -> %{"message" => "Progreso " <> Integer.to_string(documents) <> " de " <> Integer.to_string(total), "Porcentaje" => trunc((documents * 100) / total)}
+      :working -> %{"message" => "Progreso " <> number_to_string(documents) <> " de " <> number_to_string(total), "Porcentaje" => trunc((documents * 100) / total)}
       :writing -> %{"message" => "Generando archivo excel..."}
       _-> %{}
     end
     {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, response} = Poison.encode(Map.put(map, "total", total) |> Map.put("status", "doing") |> Map.put("socket_id", socket_id) |> Map.put("date_last_update", format_date(date)))
-    # Logger.info ["#{inspect response}"]
+    Logger.info ["#{inspect response}"]
     :gen_tcp.send(res_socket, response)
     {:noreply, state, progress_timeout}
   end
@@ -94,5 +95,14 @@ defmodule Xlsx.Report.Progress do
   def format_date(date) do
     {{year, month, day}, {hour, minutes, seconds}} = NaiveDateTime.to_erl(date)
     get_number(day) <> "/" <> get_number(month) <> "/" <> get_number(year) <> " " <> get_number(hour) <> ":" <> get_number(minutes) <> ":" <> get_number(seconds)
+  end
+
+  defp number_to_string(number) do
+    number
+      |> Integer.to_char_list
+      |> Enum.reverse
+      |> Enum.chunk_every(3)
+      |> Enum.join(",")
+      |> String.reverse
   end
 end
