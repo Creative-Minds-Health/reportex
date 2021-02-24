@@ -122,7 +122,10 @@ defmodule Xlsx.Report.Report do
 
   def handle_info(:kill, state) do
     kill_processes(["collector", "progress"], state)
-    kill_workers(MWorker.get_workers(self()))
+    for {_XlsxWorker, pid, _status, _date, _report} <- MWorker.get_workers(self()),
+      GenServer.cast(pid, :stop),
+      {:atomic, :ok} = MWorker.delete(pid),
+      do: []
     GenServer.cast(self(), :stop)
     {:noreply, state}
   end
@@ -168,14 +171,6 @@ defmodule Xlsx.Report.Report do
 
   def rows_with_out_specials(rows) do
     for item <- rows, item["special"] === :false, do: item
-  end
-
-  def kill_workers([]) do
-    :ok
-  end
-  def kill_workers([{XlsxWorker, pid, _status, _date, report} | t]) do
-    {:atomic, :ok} = MWorker.delete(pid)
-    kill_workers(t)
   end
 
   def kill_processes([], _state) do
