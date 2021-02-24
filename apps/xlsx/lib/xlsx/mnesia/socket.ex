@@ -60,7 +60,7 @@ defmodule Xlsx.Mnesia.Socket do
         list
         |> Enum.with_index
         |> Enum.each(fn({{_, socket, request, data, _, date, status}, i}) ->
-          :mnesia.dirty_write({XlsxSocket, socket, request, data, i + 2, date, status})
+          :mnesia.dirty_write({XlsxSocket, socket, request, data, i + 1, date, status})
         end)
 
         :ok

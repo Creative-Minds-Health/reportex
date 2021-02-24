@@ -39,6 +39,9 @@ defmodule Xlsx.Socket do
   def handle_cast(:create_child, state) do
     {:ok, pid} = Xlsx.Request.start(%{"lsocket" => state["lsocket"], "parent" => self()})
     Process.monitor(pid)
+
+    {:ok, progress} = ProgressTurn.start(%{"parent" => self()})
+    Process.monitor(progress)
     {:noreply, state}
   end
   def handle_cast(_msg, state) do
@@ -56,7 +59,6 @@ defmodule Xlsx.Socket do
 
     case MNode.next_node() do
       :undefined ->
-        Logger.info "next 1"
         []
       node ->
         :ok = MSocket.update_status(socket, {:waiting, :doing})
@@ -67,6 +69,7 @@ defmodule Xlsx.Socket do
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
+
     #Se valida si el socket que se murio es el que estaba trabajando
     case MSocket.check_kill_pid(pid) do
       {:atomic, []} ->

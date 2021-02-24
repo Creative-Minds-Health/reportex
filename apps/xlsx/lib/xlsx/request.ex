@@ -40,6 +40,9 @@ defmodule Xlsx.Request do
     :ok=:gen_tcp.close(socket)
     {:stop, :normal, state}
   end
+  def handle_cast(:stop, state) do
+    {:stop, :normal, state}
+  end
 
   def handle_cast(_msg, state) do
     {:noreply, state}
@@ -67,7 +70,7 @@ defmodule Xlsx.Request do
     XLogger.save_event(Node.self(), __MODULE__, :tcp_message, Map.get(data_decode, "socket_id", :nill), data_decode)
     new_state = case MNode.next_node() do
       :undefined ->
-        Logger.warning ["Eres el turno número... "]
+        Logger.warning ["Eres el turno número..."]
         MSocket.save_socket(res_socket, self(), data_decode, MSocket.empty_sockets(), :waiting)
         Map.put(state, "data", data) |> Map.put("res_socket", res_socket)
       node ->
