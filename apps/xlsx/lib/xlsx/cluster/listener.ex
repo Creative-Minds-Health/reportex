@@ -1,7 +1,7 @@
 defmodule Xlsx.Cluster.Listener do
   use GenServer
   require Logger
-  
+
   alias Xlsx.Mnesia.Node, as: MNode
 
   # API
@@ -12,6 +12,7 @@ defmodule Xlsx.Cluster.Listener do
   # Callbacks
   @impl true
   def init(state) do
+    Logger.info ["listenerrr start"]
     Process.flag(:trap_exit, true)
     report_config = Application.get_env(:xlsx, :report)
     new_state = Map.put(state, "master", Application.get_env(:xlsx, :master)) |> Map.put("size", report_config[:size])
@@ -26,7 +27,17 @@ defmodule Xlsx.Cluster.Listener do
 
   @impl true
   def handle_call({:generate_report, request}, from, state) do
-    {:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))
+    Logger.info ["project: #{inspect request["data"]["project"]}, report_key: #{inspect request["data"]["report_key"]}"]
+    {:ok, pid} = case {request["data"]["project"], request["data"]["report_key"]} do
+      {"SRS", "egresses"} ->
+        Logger.info ["entra al mact"]
+        Xlsx.SrsWeb.Egress.Report.start(Map.put(request, "listener", self()))
+      _->
+      Logger.info ["entra al nill"]
+      :nill
+    end
+    Logger.info ["pid: #{inspect pid}"]
+    #{:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))
     {:ok, date} = DateTime.now("America/Mexico_City")
     Process.monitor(pid)
     {:reply, pid, Map.put(state, "reports", Map.put(state["reports"], pid, %{"init_date" => date, "request" => request["request"]}))}
