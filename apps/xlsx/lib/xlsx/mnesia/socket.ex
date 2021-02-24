@@ -39,7 +39,7 @@ defmodule Xlsx.Mnesia.Socket do
   end
 
   def empty_sockets() do
-    case :mnesia.transaction(fn -> :mnesia.match_object({XlsxSocket, :_, :_, :_, :_, :_, :_}) end) do
+    case :mnesia.transaction(fn -> :mnesia.match_object({XlsxSocket, :_, :_, :_, :_, :_, :waiting}) end) do
       {:atomic, []} -> 1
       {:atomic, list} ->
         length(list) + 1
