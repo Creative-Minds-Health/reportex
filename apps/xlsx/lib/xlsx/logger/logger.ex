@@ -24,8 +24,8 @@ defmodule Xlsx.Logger.Logger do
   end
 
   @impl true
-  def handle_cast({:send_message, res_socket, message}, state) do
-    :gen_tcp.send(res_socket, message)
+  def handle_cast({:send_message, res_socket, response}, state) do
+    :gen_tcp.send(res_socket, response)
     {:noreply, state}
   end
   def handle_cast(:stop, state) do

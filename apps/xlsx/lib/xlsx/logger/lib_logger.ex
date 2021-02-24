@@ -14,8 +14,8 @@ defmodule Xlsx.Logger.LibLogger do
     GenServer.cast({XLogger, get_node()}, {:save, Node.self, module, event, socket_id, data})
   end
 
-  def send_progress(res_socket, message) do
-    GenServer.cast({XLogger, get_node()}, {:send_progress, res_socket, message})
+  def send_progress(res_socket, response) do
+    GenServer.cast({XLogger, get_node()}, {:send_progress, res_socket, response})
   end
 
   defp get_node() do
