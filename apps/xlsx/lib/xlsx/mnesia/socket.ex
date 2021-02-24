@@ -3,14 +3,14 @@ defmodule Xlsx.Mnesia.Socket do
   alias :mnesia, as: Mnesia
 
   def init() do
-    {:atomic, :ok} = Mnesia.create_table(XlsxSocket, [attributes: [:id, :report, :data, :turno, :date, :status], type: :ordered_set])
+    {:atomic, :ok} = Mnesia.create_table(XlsxSocket, [attributes: [:id, :request, :data, :turno, :date, :status], type: :ordered_set])
     :ok
   end
 
 
-  def save_socket(socket, report, data, turn, status) do
+  def save_socket(socket, request, data, turn, status) do
     {:ok, date} = DateTime.now("America/Mexico_City")
-    :mnesia.dirty_write({XlsxSocket, socket, report, data, turn, date, status})
+    :mnesia.dirty_write({XlsxSocket, socket, request, data, turn, date, status})
     data
   end
 
@@ -22,13 +22,13 @@ defmodule Xlsx.Mnesia.Socket do
   def update_status(id, {status, new_status}) do
     case :mnesia.transaction(fn -> :mnesia.match_object({XlsxSocket, id, :_, :_, :_, :_, status}) end) do
       {:atomic, []} -> :ok
-      {:atomic, [{XlsxSocket, id, report, data, turno, date, _status}|_t]} ->
-        :mnesia.dirty_write({XlsxSocket, id, report, data, turno, date, new_status})
+      {:atomic, [{XlsxSocket, id, request, data, turno, date, _status}|_t]} ->
+        :mnesia.dirty_write({XlsxSocket, id, request, data, turno, date, new_status})
     end
   end
 
-  def check_kill_pid(report) do
-    :mnesia.transaction(fn -> :mnesia.match_object({XlsxSocket, :_, report, :_, :_, :_, :_}) end)
+  def check_kill_pid(request) do
+    :mnesia.transaction(fn -> :mnesia.match_object({XlsxSocket, :_, request, :_, :_, :_, :_}) end)
   end
 
   def next_socket() do
@@ -59,8 +59,8 @@ defmodule Xlsx.Mnesia.Socket do
       list ->
         list
         |> Enum.with_index
-        |> Enum.each(fn({{_, socket, report, data, _, date, status}, i}) ->
-          :mnesia.dirty_write({XlsxSocket, socket, report, data, i + 2, date, status})
+        |> Enum.each(fn({{_, socket, request, data, _, date, status}, i}) ->
+          :mnesia.dirty_write({XlsxSocket, socket, request, data, i + 2, date, status})
         end)
 
         :ok
