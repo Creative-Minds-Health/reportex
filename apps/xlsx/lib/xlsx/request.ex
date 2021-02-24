@@ -5,7 +5,7 @@ defmodule Xlsx.Request do
   alias Xlsx.Mnesia.Node, as: MNode
   alias Xlsx.Decode.Query, as: DQuery
   alias Xlsx.Cluster.Listener, as: Listener
-  alias Xlsx.Logger.Logger, as: XLogger
+  alias Xlsx.Logger.LibLogger, as: LibLogger
   alias Xlsx.Mnesia.Socket, as: MSocket
 
   # API
@@ -29,7 +29,7 @@ defmodule Xlsx.Request do
   @impl true
   def handle_cast(:listener, %{"lsocket" => lsocket, "parent" => parent}=state) do
     {:ok, socket} = :gen_tcp.accept(lsocket)
-    XLogger.save_event(Node.self(), __MODULE__, :nill, :tcp_accepted, %{})
+    LibLogger.save_event(__MODULE__, :tcp_accepted, :nill, %{})
     GenServer.cast(parent, :create_child)
     :ok = :inet.setopts(socket,[{:active,:once}])
     {:noreply, Map.put(state, "socket", socket), 300_000};
@@ -60,7 +60,7 @@ defmodule Xlsx.Request do
   def handle_info({:tcp, res_socket, data}, %{"socket" => socket}=state) do
     :ok=:inet.setopts(socket,[{:active, :once}])
     data_decode = Poison.decode!(data) |> DQuery.decode()
-    XLogger.save_event(Node.self(), __MODULE__, :tcp_message, Map.get(data_decode, "socket_id", :nill), data_decode)
+    LibLogger.save_event(__MODULE__, :tcp_message, Map.get(data_decode, "socket_id", :nill), data_decode)
     new_state = case MNode.next_node() do
       :undefined ->
         Logger.warning ["Eres el turno número... "]

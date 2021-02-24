@@ -1,8 +1,7 @@
 defmodule Xlsx.Cluster.Listener do
   use GenServer
   require Logger
-
-  alias Xlsx.Logger.Logger, as: XLogger
+  
   alias Xlsx.Mnesia.Node, as: MNode
 
   # API

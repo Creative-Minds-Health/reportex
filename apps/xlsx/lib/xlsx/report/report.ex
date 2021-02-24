@@ -7,7 +7,7 @@ defmodule Xlsx.Report.Report do
   alias Xlsx.Report.Collector, as: Collector
   alias Xlsx.Report.Worker, as: Worker
   alias Xlsx.Mnesia.Worker, as: MWorker
-  alias Xlsx.Logger.Logger, as: XLogger
+  alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API
   def start(state) do
@@ -38,7 +38,7 @@ defmodule Xlsx.Report.Report do
     Process.monitor(progress)
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
     new_state = Map.put(state, "record", record) |> Map.put("progress", progress)
-    XLogger.save_event(Node.self(), __MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
+    LibLogger.save_event(__MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
     send(self(), {:count, Mongodb.count_query(data, record["collection"])})
     {:noreply, new_state}
   end
@@ -73,7 +73,7 @@ defmodule Xlsx.Report.Report do
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
     new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
-    XLogger.save_event(Node.self(), __MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
+    LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
     send(self(), {:run, page * record["config"]["documents"]})
     {:noreply, new_state}
   end
@@ -89,8 +89,8 @@ defmodule Xlsx.Report.Report do
     {:noreply, state}
   end
 
-  def handle_info({:run, _limit}, %{"total" => total, "skip" => skip}=state) when skip >= total do
-    Logger.warning "Se mandaron todos los registros"
+  def handle_info({:run, _limit}, %{"total" => total, "skip" => skip, "data" => data}=state) when skip >= total do
+    LibLogger.save_event(__MODULE__, :run_all, Map.get(data, "socket_id", :nill), state)
     {:noreply, state}
   end
 
