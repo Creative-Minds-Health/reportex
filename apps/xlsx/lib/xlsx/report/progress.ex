@@ -3,7 +3,8 @@ defmodule Xlsx.Report.Progress do
   require Logger
 
   alias Xlsx.Date.Date, as: DateLib
-    alias Xlsx.Cluster.Listener, as: Listener
+  alias Xlsx.Cluster.Listener, as: Listener
+  alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API
   def start(state) do
@@ -42,10 +43,10 @@ defmodule Xlsx.Report.Progress do
       Map.put(map, "file", :filename.join(File.cwd!(), file_name))
       |> Map.put("destination", Map.get(map, "destination") <> file_name <> "_" <> time  <> ".xlsx")
       |> Map.put("expires", Map.get(map, "expires", 1))
-    Logger.info ["new_map: #{inspect new_map}"]
     # {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
     {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id))
     :gen_tcp.send(res_socket, json_response)
+    LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end

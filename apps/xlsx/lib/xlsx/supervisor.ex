@@ -21,10 +21,12 @@ defmodule Xlsx.Supervisor do
 
     children = case node do
       :master ->
+        :ok = Xlsx.Logger.LibLogger.init()
         MNode.save_node(Node.self, report_config[:size], 0, DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
         [
           priv_child_spec({Socket, Xlsx.Socket, %{}}),
-          priv_child_spec({Master, Xlsx.Cluster.Master, %{}})
+          priv_child_spec({Master, Xlsx.Cluster.Master, %{}}),
+          priv_child_spec({XLogger, Xlsx.Logger.Logger, %{}})
         ]
         _->
           []
@@ -54,14 +56,12 @@ defmodule Xlsx.Supervisor do
     {:ok, mongodb} = Application.get_env(:xlsx, :mongodb) |> Poison.decode()
     spec = priv_child_spec({Mongo, Mongo, Mongodb.config(mongodb)})
     {:ok, _} = Supervisor.start_child(__MODULE__, spec)
-    Logger.info ["Inicia child de mongodb"]
     start_child(t)
   end
   defp start_child([:nodejs|t]) do
     js_path = :filename.join(:code.priv_dir(:xlsx), "lib/js")
     spec = priv_child_spec({NodeJS, NodeJS, [path: js_path, pool_size: 10]})
     {:ok, _} = Supervisor.start_child(__MODULE__, spec)
-    Logger.info ["Inicia child de nodejs"]
     start_child(t)
   end
   defp priv_child_spec({id, module, args}) do

@@ -4,6 +4,7 @@ defmodule Xlsx.Report.Collector do
 
   alias Elixlsx.Sheet
   alias Elixlsx.Workbook
+  alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API
   def start(state) do
@@ -35,9 +36,8 @@ defmodule Xlsx.Report.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "query" => query, "parent" => parent, "progress" => progress}=state) do
-    Logger.info "Generate..."
-
+  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "query" => query, "parent" => parent, "progress" => progress, "socket_id" => socket_id}=state) do
+    LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
     widths = for index <- 1..110, into: %{}, do:  {index, 30}
     sheet = %Sheet{
@@ -80,7 +80,7 @@ defmodule Xlsx.Report.Collector do
     file_name = get_date_now(:undefined, "-")
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(file_name)
 
-    Logger.info "Finish..."
+    LibLogger.save_event(__MODULE__, :done_xlsx, socket_id, %{})
     send(progress, {:done, file_name})
     # GenServer.cast(self(), :stop)
     {:noreply, Map.put(state, "rows", rows)}
