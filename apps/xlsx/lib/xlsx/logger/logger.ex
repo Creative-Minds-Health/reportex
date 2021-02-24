@@ -3,7 +3,7 @@ defmodule Xlsx.Logger.Logger do
   require Logger
 
 
-  # event => :nodeup, :nodedown, :tcp_accepted, :tcp_message, :report_start, :count, :run_all, :generating_xlsx, :done_xlsx, :upload_xlsx
+  # event => :nodeup, :nodedown, :tcp_accepted, :tcp_message, :report_start, :count, :run_all, :generating_xlsx, :done_xlsx, :upload_xlsx, :kill_progress, kill_collector
 
   # API
   def start_link(state) do

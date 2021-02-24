@@ -183,7 +183,10 @@ defmodule Xlsx.Report.Report do
   def kill_processes([h | t], state) do
     case Map.get(state, h, :nil) do
       :nill -> kill_processes(t, state)
-      pid -> GenServer.cast(pid, :stop)
+      pid ->
+        LibLogger.save_event(__MODULE__, String.to_atom("kill_" <> h), Map.get(state, "data", %{}) |> Map.get("socket_id", :nill), %{})
+        GenServer.cast(pid, :stop)
+        kill_processes(t, state)
     end
   end
 end
