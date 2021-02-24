@@ -40,8 +40,6 @@ defmodule Xlsx.Socket do
     {:ok, pid} = Xlsx.Request.start(%{"lsocket" => state["lsocket"], "parent" => self()})
     Process.monitor(pid)
 
-    {:ok, progress} = ProgressTurn.start(%{"parent" => self()})
-    Process.monitor(progress)
     {:noreply, state}
   end
   def handle_cast(_msg, state) do

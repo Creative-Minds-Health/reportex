@@ -26,6 +26,7 @@ defmodule Xlsx.Supervisor do
         [
           priv_child_spec({Socket, Xlsx.Socket, %{}}),
           priv_child_spec({Master, Xlsx.Cluster.Master, %{}}),
+          priv_child_spec({ProgressTurn, Xlsx.SrsWeb.ProgressTurn, %{}}),
           priv_child_spec({XLogger, Xlsx.Logger.Logger, %{}})
         ]
         _->

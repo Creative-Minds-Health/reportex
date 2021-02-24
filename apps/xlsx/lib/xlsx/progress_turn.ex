@@ -6,8 +6,8 @@ defmodule Xlsx.SrsWeb.ProgressTurn do
   alias Xlsx.Decode.Query, as: DQuery
 
   # API
-  def start(state) do
-    GenServer.start(__MODULE__, state)
+  def start_link(state) do
+    GenServer.start_link(__MODULE__, state, name: __MODULE__)
   end
 
   # Callbacks
