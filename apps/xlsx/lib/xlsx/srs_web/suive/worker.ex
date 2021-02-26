@@ -32,7 +32,7 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
   end
 
   @impl true
-  def handle_info(:run, %{"query" => query, "parent" => parent, "collection" => collection, "diagnosis_template" => diagnosis_template}=state) do
+  def handle_info(:run, %{"query" => query, "parent" => parent, "collection" => collection, "diagnosis_template" => diagnosis_template, "collector" => collector}=state) do
     cursor = Mongo.aggregate(:mongo, collection, query, [timeout: 60_000]) |> Enum.to_list()
 
     groups = cursor
@@ -40,9 +40,11 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
         Suive.create_structure_data(&1["_id"]["group"], &1["diagnosis"])
       ))
       |> Enum.to_list()
-      # Logger.info "groups #{inspect groups}"
-      Suive.search_diagnosis(groups, diagnosis_template, Map.keys(diagnosis_template))
 
+      report = Suive.search_diagnosis(groups, diagnosis_template, Map.keys(diagnosis_template))
+
+      :ok = GenServer.call(collector, {:concat, report})
+      :ok = GenServer.call(collector, {:concat, report})
     # {:ok, _date} = DateTime.now("America/Mexico_City")
     # records = cursor
     #   |> Stream.map(&(

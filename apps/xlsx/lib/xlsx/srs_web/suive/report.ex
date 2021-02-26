@@ -4,7 +4,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
 
   alias Xlsx.Mongodb.Mongodb, as: Mongodb
   # alias Xlsx.SrsWeb.Egress.Progress, as: Progress
-  # alias Xlsx.SrsWeb.Egress.Collector, as: Collector
+  alias Xlsx.SrsWeb.Suive.Collector, as: Collector
   alias Xlsx.SrsWeb.Suive.Worker, as: Worker
   # alias Xlsx.Mnesia.Worker, as: MWorker
   # alias Xlsx.Logger.LibLogger, as: LibLogger
@@ -35,8 +35,12 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   @impl true
   def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
+    diagnosis_template = add_group_ages(record["diagnosis_template"], record["group_ages"])
 
-    {:ok, pid} = Worker.start(%{"parent" => self(), "query" => data["query"], "collection" => record["collection"], "diagnosis_template" => add_group_ages(record["diagnosis_template"], record["group_ages"])})
+    {:ok, collector} = Collector.start(%{"parent" => self(), "socket_id" => data["socket_id"], "diagnosis_template" => diagnosis_template})
+    Process.monitor(collector)
+
+    {:ok, pid} = Worker.start(%{"parent" => self(), "query" => data["query"], "collection" => record["collection"], "diagnosis_template" => diagnosis_template, "collector" => collector})
     Process.monitor(pid)
 
     send(pid, :run)
