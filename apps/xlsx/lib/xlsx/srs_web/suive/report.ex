@@ -112,6 +112,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     msg = Integer.to_string(skip) <> "-" <> Integer.to_string(total)
     {:ok, _response} = Poison.encode(%{"progreso..." => msg})
     send(self(), {:run, page * documents})
+    #Logger.info ["msg: #{inspect msg}"]
     {:noreply, state}
   end
 
@@ -121,18 +122,15 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   end
 
   def handle_info({:run, limit}, %{"total" => total, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
-    Logger.info ["Limit: #{inspect limit}"]
-    Logger.info ["total: #{inspect total}"]
-    Logger.info ["skip: #{inspect skip}"]
-    Logger.info ["documents: #{inspect documents}"]
-    Logger.info ["page: #{inspect page}"]
+    #Logger.info ["Limit: #{inspect limit}, total: #{inspect total}, skip: #{inspect skip}, documents: #{inspect documents}, page: #{inspect page}"]
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
         send(pid, :run)
-        #send(self(), {:run, (page + 1) * documents})
-        #:ok = MWorker.update_status(pid, {:waiting, :occupied})
+        send(self(), {:run, (page + 1) * documents})
+        :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
       _ ->
+        Logger.info ["No hay mas"]
         state
     end
     {:noreply, new_state}

@@ -40,7 +40,8 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
       |> Enum.to_list()
       report = Suive.search_diagnosis(groups, diagnosis_template, Map.keys(diagnosis_template))
       :ok = GenServer.call(collector, {:concat, report})
-      Logger.info ["Termina"]
+      :ok = GenServer.call(parent, :waiting_status)
+      send(parent, {:run_by_worker, self()})
       #:ok = GenServer.call(collector, {:concat, report})
     # {:ok, _date} = DateTime.now("America/Mexico_City")
     # records = cursor
