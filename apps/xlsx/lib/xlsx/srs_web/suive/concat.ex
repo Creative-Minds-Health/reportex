@@ -2,7 +2,6 @@ defmodule Xlsx.SrsWeb.Suive.Concat do
   require Logger
 
   def concat_data(data, diagnosis_template, []) do
-    Logger.info ["diagnosis_templatediagnosis_template: #{inspect diagnosis_template}"]
     diagnosis_template
   end
 

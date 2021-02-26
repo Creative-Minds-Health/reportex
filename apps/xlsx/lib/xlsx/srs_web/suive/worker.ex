@@ -13,7 +13,6 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    # Logger.info "Worker was created..."
     {:ok, state}
   end
 
@@ -34,17 +33,15 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
   @impl true
   def handle_info(:run, %{"query" => query, "parent" => parent, "collection" => collection, "diagnosis_template" => diagnosis_template, "collector" => collector}=state) do
     cursor = Mongo.aggregate(:mongo, collection, query, [timeout: 60_000]) |> Enum.to_list()
-
     groups = cursor
       |> Stream.map(&(
         Suive.create_structure_data(&1["_id"]["group"], &1["diagnosis"])
       ))
       |> Enum.to_list()
-
       report = Suive.search_diagnosis(groups, diagnosis_template, Map.keys(diagnosis_template))
-
       :ok = GenServer.call(collector, {:concat, report})
-      :ok = GenServer.call(collector, {:concat, report})
+      Logger.info ["Termina"]
+      #:ok = GenServer.call(collector, {:concat, report})
     # {:ok, _date} = DateTime.now("America/Mexico_City")
     # records = cursor
     #   |> Stream.map(&(
@@ -59,8 +56,8 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
     {:noreply, state}
   end
 
-  def handle_info(_msg, state) do
-    Logger.info "UNKNOWN INFO MESSAGE"
+  def handle_info(msg, state) do
+    Logger.info "UNKNOWN INFO MESSAGE #{inspect state}"
     {:noreply, state}
   end
 

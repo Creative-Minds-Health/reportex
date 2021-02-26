@@ -21,7 +21,6 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
 
   @impl true
   def handle_call(:generate, _from, %{"diagnosis_template" => diagnosis_template}=state) do
-    Logger.info ["diagnosis_template #{inspect diagnosis_template}"]
   end
   def handle_call({:concat, data}, _from, %{"diagnosis_template" => diagnosis_template}=state) do
     {:reply, :ok, Map.put(state, "diagnosis_template", Concat.concat_data(data, diagnosis_template, Map.keys(diagnosis_template)))}

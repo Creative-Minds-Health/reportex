@@ -37,6 +37,7 @@ defmodule Xlsx.Logger.Logger do
       :report_start -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
       :run_all -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
       :count -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id} - total: #{inspect data["total"]}"]
+      :tcp_message -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
       _-> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id} -#{inspect data}"]
     end
     Logger.info info

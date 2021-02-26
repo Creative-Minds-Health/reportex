@@ -3,11 +3,12 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   require Logger
 
   alias Xlsx.Mongodb.Mongodb, as: Mongodb
-  # alias Xlsx.SrsWeb.Egress.Progress, as: Progress
+  alias Xlsx.SrsWeb.Suive.Progress, as: Progress
   alias Xlsx.SrsWeb.Suive.Collector, as: Collector
   alias Xlsx.SrsWeb.Suive.Worker, as: Worker
-  # alias Xlsx.Mnesia.Worker, as: MWorker
-  # alias Xlsx.Logger.LibLogger, as: LibLogger
+  alias Xlsx.Mnesia.Worker, as: MWorker
+  alias Xlsx.Logger.LibLogger, as: LibLogger
+  alias Xlsx.SrsWeb.Suive.Suive, as: Suive
 
   # API
   def start(state) do
@@ -19,7 +20,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   def init(state) do
     Process.flag(:trap_exit, true)
     GenServer.cast(self(), :start)
-    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0)}
+    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 1) |> Map.put("page", 1) |> Map.put("skip", 0)}
   end
 
   @impl true
@@ -33,25 +34,15 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   end
 
   @impl true
-  def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
-    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
-    diagnosis_template = add_group_ages(record["diagnosis_template"], record["group_ages"])
-
-    {:ok, collector} = Collector.start(%{"parent" => self(), "socket_id" => data["socket_id"], "diagnosis_template" => diagnosis_template})
-    Process.monitor(collector)
-
-    {:ok, pid} = Worker.start(%{"parent" => self(), "query" => data["query"], "collection" => record["collection"], "diagnosis_template" => diagnosis_template, "collector" => collector})
-    Process.monitor(pid)
-
-    send(pid, :run)
-    {:noreply, state}
-    # {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
-    # Process.monitor(progress)
-    # [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
-    # new_state = Map.put(state, "record", record) |> Map.put("progress", progress)
-    # LibLogger.save_event(__MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
-    # send(self(), {:count, Mongodb.count_query(data, record["collection"])})
-    # {:noreply, new_state}
+  def handle_cast(:start, %{"res_socket" => res_socket, "data" => data, "total" => total}=state) do
+    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
+    Process.monitor(progress)
+    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"], "project" => data["project"]})
+      |> Enum.to_list()
+    new_state = Map.put(state, "record", record) |> Map.put("progress", progress)
+    LibLogger.save_event(__MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
+    send(self(), {:count, total})
+    {:noreply, new_state}
   end
   def handle_cast(:stop, %{"data" => data}=state) do
     LibLogger.save_event(__MODULE__, :kill_report, Map.get(data, "socket_id", :nill), %{})
@@ -63,7 +54,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   end
 
   @impl true
-
   # def handle_info({:count, 0}, %{"progress" => progress, "socket_id" => socket_id, "res_socket" => res_socket}=state) do
   #   Logger.warning "count 0"
   #   {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", socket_id))
@@ -72,64 +62,93 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   #   GenServer.cast(self(), :stop)
   #   {:noreply, state}
   # end
-  # def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
-  #   send(progress, {:update_total, total})
-  #   [%{"$match" => query} | _] = data["query"];
-  #   {:ok, date} = DateTime.now("America/Mexico_City")
-  #   {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
-  #   Process.monitor(collector)
-  #   for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
-  #     {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
-  #     Process.monitor(pid),
-  #     :ok = MWorker.dirty_write(pid, :waiting, date, self()),
-  #     into: %{},
-  #     do: {pid, %{"date" => date, "status" => :waiting}}
-  #   new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
-  #   LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
-  #   send(self(), {:run, page * record["config"]["documents"]})
-  #   {:noreply, new_state}
-  # end
-  #
-  # def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip}=state) when skip >= total do
-  #   GenServer.cast(from, :stop)
-  #   {:noreply, state}
-  # end
-  # def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip}=state) do
-  #   msg = Integer.to_string(skip) <> "-" <> Integer.to_string(total)
-  #   {:ok, _response} = Poison.encode(%{"progreso..." => msg})
-  #   send(self(), {:run, page * documents})
-  #   {:noreply, state}
-  # end
-  #
-  # def handle_info({:run, _limit}, %{"total" => total, "skip" => skip, "data" => data}=state) when skip >= total do
-  #   LibLogger.save_event(__MODULE__, :run_all, Map.get(data, "socket_id", :nill), state)
-  #   {:noreply, state}
-  # end
-  #
-  # def handle_info({:run, limit}, %{"total" => total, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
-  #   new_state = case MWorker.next_worker() do
-  #     {:ok, pid} ->
-  #       send(pid, {:run, skip, limit, documents})
-  #       send(self(), {:run, (page + 1) * documents})
-  #       :ok = MWorker.update_status(pid, {:waiting, :occupied})
-  #       Map.put(state, "skip", limit) |> Map.put("page", page + 1)
-  #     _ ->
-  #       state
-  #   end
-  #   {:noreply, new_state}
-  # end
-  # def handle_info({:run, limit}, %{"page" => page, "total" => total, "skip" => skip, "documents" => _documents}=state)  when limit > total do
-  #   new_state = case MWorker.next_worker() do
-  #     {:ok, pid} ->
-  #       send(pid, {:run, skip, total, (total - skip)})
-  #       send(self(), {:run, total})
-  #       :ok = MWorker.update_status(pid, {:waiting, :occupied})
-  #       Map.put(state, "skip", limit) |> Map.put("page", page + 1)
-  #     _ ->
-  #       state
-  #   end
-  #   {:noreply, new_state}
-  # end
+  def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
+    [%{"$match" => query} | _] = data["query"];
+    {:ok, date} = DateTime.now("America/Mexico_City")
+    dates = Suive.date_range(query, record["config"]["days_range"])
+    n_workers = case length(dates) > record["config"]["workers"] do
+      :true -> record["config"]["workers"]
+      :false ->  length(dates)
+    end
+    send(progress, {:update_total, length(dates)})
+    diagnosis_template = add_group_ages(record["diagnosis_template"], record["group_ages"])
+    {:ok, collector} = Collector.start(%{"parent" => self(), "socket_id" => data["socket_id"], "diagnosis_template" => diagnosis_template})
+    Process.monitor(collector)
+    for index <- 1..n_workers,
+    # query["consultation_date"]["$gte"],
+    # query["consultation_date"]["$lt"]
+      {:ok, pid} = Worker.start(%{"index" => index, "parent" => self(), "query" => Suive.make_query(data["query"], Enum.at(dates, index)), "collector" => collector, "collection" => "attentions", "diagnosis_template" => diagnosis_template}),
+      Process.monitor(pid),
+      :ok = MWorker.dirty_write(pid, :waiting, date, self()),
+      into: %{},
+      do: {pid, %{"date" => date, "status" => :waiting}}
+    new_state = Map.put(state, "documents", 1) |> Map.put("collector", collector) |> Map.put("total", length(dates))
+    LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
+    send(self(), {:run, page * 1})
+    {:noreply, new_state}
+
+    # send(progress, {:update_total, total})
+    # [%{"$match" => query} | _] = data["query"];
+    # {:ok, date} = DateTime.now("America/Mexico_City")
+    # {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
+    # Process.monitor(collector)
+    # for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
+    #   {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
+    #   Process.monitor(pid),
+    #   :ok = MWorker.dirty_write(pid, :waiting, date, self()),
+    #   into: %{},
+    #   do: {pid, %{"date" => date, "status" => :waiting}}
+    # new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
+    # LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
+    # send(self(), {:run, page * record["config"]["documents"]})
+    # {:noreply, new_state}
+  end
+
+  def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip}=state) when skip >= total do
+    GenServer.cast(from, :stop)
+    {:noreply, state}
+  end
+  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip}=state) do
+    msg = Integer.to_string(skip) <> "-" <> Integer.to_string(total)
+    {:ok, _response} = Poison.encode(%{"progreso..." => msg})
+    send(self(), {:run, page * documents})
+    {:noreply, state}
+  end
+
+  def handle_info({:run, _limit}, %{"total" => total, "skip" => skip, "data" => data}=state) when skip >= total do
+    LibLogger.save_event(__MODULE__, :run_all, Map.get(data, "socket_id", :nill), state)
+    {:noreply, state}
+  end
+
+  def handle_info({:run, limit}, %{"total" => total, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
+    Logger.info ["Limit: #{inspect limit}"]
+    Logger.info ["total: #{inspect total}"]
+    Logger.info ["skip: #{inspect skip}"]
+    Logger.info ["documents: #{inspect documents}"]
+    Logger.info ["page: #{inspect page}"]
+    new_state = case MWorker.next_worker() do
+      {:ok, pid} ->
+        send(pid, :run)
+        #send(self(), {:run, (page + 1) * documents})
+        #:ok = MWorker.update_status(pid, {:waiting, :occupied})
+        Map.put(state, "skip", limit) |> Map.put("page", page + 1)
+      _ ->
+        state
+    end
+    {:noreply, new_state}
+  end
+  def handle_info({:run, limit}, %{"page" => page, "total" => total, "skip" => skip, "documents" => _documents}=state)  when limit > total do
+    new_state = case MWorker.next_worker() do
+      {:ok, pid} ->
+        send(pid, {:run, skip, total, (total - skip)})
+        send(self(), {:run, total})
+        :ok = MWorker.update_status(pid, {:waiting, :occupied})
+        Map.put(state, "skip", limit) |> Map.put("page", page + 1)
+      _ ->
+        state
+    end
+    {:noreply, new_state}
+  end
 
   def handle_info(:kill, state) do
     kill_processes(["collector", "progress"], state)
@@ -174,15 +193,15 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     end
   end
 
-  # def name_columns(rows) do
-  #   for item <- rows,
-  #     into: [],
-  #     do: [item["name"], bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :thin, color: "#000000"], top: [style: :thin, color: "#000000"], left: [style: :thin, color: "#000000"], right: [style: :thin, color: "#000000"]]]
-  # end
+  def name_columns(rows) do
+    for item <- rows,
+      into: [],
+      do: [item["name"], bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :thin, color: "#000000"], top: [style: :thin, color: "#000000"], left: [style: :thin, color: "#000000"], right: [style: :thin, color: "#000000"]]]
+  end
 
-  # def rows_with_out_specials(rows) do
-  #   for item <- rows, item["special"] === :false, do: item
-  # end
+  def rows_with_out_specials(rows) do
+    for item <- rows, item["special"] === :false, do: item
+  end
 
   def kill_processes([], _state) do
     :ok
@@ -208,4 +227,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   def add_group_ages(%{"group1" => group1, "group2" => group2}, ages) do
     Map.put(%{}, "group1", add_group_ages(group1, ages, [])) |> Map.put("group2", add_group_ages(group2, ages, []))
   end
+
+
 end

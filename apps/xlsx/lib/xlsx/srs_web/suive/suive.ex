@@ -1,6 +1,24 @@
 defmodule Xlsx.SrsWeb.Suive.Suive do
   require Logger
 
+  alias Xlsx.Date.Date, as: DateLib
+
+
+  def date_range(query, days_range) do
+    DateLib.date_rage({
+        query["consultation_date"]["$gte"],
+        query["consultation_date"]["$lt"]
+      },
+      days_range
+    ) |> DateLib.transform_date_range(%{"from" => "$gte", "to" => "$lt"}) |> Enum.reverse()
+  end
+
+  def make_query([%{"$match" => query} | t], date_map)do
+    [
+      %{"$match" => Map.put(query, "consultation_date", date_map)} | t
+    ]
+  end
+
   def create_structure_data("ENFERMEDADES NO TRANSMISIBLES", diagnosis) do
     %{"group1" => diagnosis}
   end
