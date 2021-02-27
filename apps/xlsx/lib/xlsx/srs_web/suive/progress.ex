@@ -36,18 +36,21 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
 
   @impl true
   def handle_info({:done , file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
-    map = Application.get_env(:xlsx, :srs_gcs)
-    date = DateTime.now!("America/Mexico_City")
-    time = DateLib.string_time(date, "-")
-    new_map =
-      Map.put(map, "file", :filename.join(File.cwd!(), file_name))
-      |> Map.put("destination", Map.get(map, "destination") <> file_name <> "_" <> time  <> ".xlsx")
-      |> Map.put("expires", Map.get(map, "expires", 1))
-    # {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
-    {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id))
-    #:gen_tcp.send(res_socket, json_response)
-    LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
-    LibLogger.send_progress(res_socket, json_response)
+    # map = Application.get_env(:xlsx, :srs_gcs)
+    # date = DateTime.now!("America/Mexico_City")
+    # time = DateLib.string_time(date, "-")
+    # new_map =
+    #   Map.put(map, "file", :filename.join(File.cwd!(), file_name))
+    #   |> Map.put("destination", Map.get(map, "destination") <> file_name <> "_" <> time  <> ".xlsx")
+    #   |> Map.put("expires", Map.get(map, "expires", 1))
+    # # {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
+    # {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id))
+    # #:gen_tcp.send(res_socket, json_response)
+    # LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
+    # LibLogger.send_progress(res_socket, json_response)
+    Logger.info ["El collector terminó de juntar la información y lo escribio en python: #{inspect file_name}"]
+    {:ok, json_response} = Poison.encode(Map.put(%{}, "url", file_name) |> Map.put("socket_id", socket_id))
+    :gen_tcp.send(res_socket, json_response)
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end
@@ -55,7 +58,7 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
   def handle_info({:documents, new_documents}, %{"documents" => documents}=state) do
-    {:noreply, Map.put(state, "documents", new_documents + documents), 500}
+    {:noreply, Map.put(state, "documents", new_documents), 500}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "total", total) |> Map.put("status", :working), progress_timeout}
@@ -63,12 +66,12 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
   def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total, "socket_id" => socket_id}=state) do
     map = case status do
       :waiting -> %{"message" => "Calculando progreso"}
-      :working -> %{"message" => "Progreso " <> number_to_string(documents) <> " de " <> number_to_string(total), "Porcentaje" => trunc((documents * 100) / total)}
+      :working -> %{"message" => "Consultando información...", "Porcentaje" => trunc((documents * 100) / total)}
       :writing -> %{"message" => "Generando archivo excel..."}
       _-> %{}
     end
     {:ok, date} = DateTime.now("America/Mexico_City")
-    {:ok, response} = Poison.encode(Map.put(map, "total", total) |> Map.put("status", "doing") |> Map.put("socket_id", socket_id) |> Map.put("date_last_update", format_date(date)))
+    {:ok, response} = Poison.encode(Map.put(map, "status", "doing") |> Map.put("socket_id", socket_id) |> Map.put("date_last_update", format_date(date)))
     LibLogger.send_progress(res_socket, response)
     #:gen_tcp.send(res_socket, response)
     {:noreply, state, progress_timeout}

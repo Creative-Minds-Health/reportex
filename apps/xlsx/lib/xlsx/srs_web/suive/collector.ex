@@ -20,9 +20,8 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   end
 
   @impl true
-  def handle_call(:generate, _from, %{"diagnosis_template" => diagnosis_template}=state) do
-  end
-  def handle_call({:concat, data}, _from, %{"diagnosis_template" => diagnosis_template}=state) do
+  def handle_call({:concat, data, documents}, _from, %{"diagnosis_template" => diagnosis_template, "progress" => progress}=state) do
+    send(progress, {:documents, documents})
     {:reply, :ok, Map.put(state, "diagnosis_template", Concat.concat_data(data, diagnosis_template, Map.keys(diagnosis_template)))}
   end
   # def handle_call({:concat, records, documents}, _from, %{"rows" => rows, "progress" => progress}=state) do
@@ -91,6 +90,13 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   #   # GenServer.cast(self(), :stop)
   #   {:noreply, Map.put(state, "rows", rows)}
   # end
+  def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress}=state) do
+    send(progress, {:update_status, :writing})
+    Logger.info ["generar archivo: #{inspect diagnosis_template}"]
+    file_name = get_date_now(:undefined, "-")
+    send(progress, {:done, file_name})
+    {:noreply, state}
+  end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
   end
@@ -117,22 +123,22 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   #   end
   # end
   #
-  # def get_date_now(:undefined, separator) do
-  #   today = DateTime.utc_now
-  #   [today.year, today.month, today.day]
-  #   Enum.join [get_number(today.day), get_number(today.month), today.year], separator
-  # end
+  def get_date_now(:undefined, separator) do
+    today = DateTime.utc_now
+    [today.year, today.month, today.day]
+    Enum.join [get_number(today.day), get_number(today.month), today.year], separator
+  end
   #
   # def get_date_now(date, separator) do
   #   [date.year, date.month, date.day]
   #   Enum.join [get_number(date.day), get_number(date.month), date.year], separator
   # end
   #
-  # def get_number(number) when number < 10 do
-  #   "0" <> Integer.to_string(number);
-  # end
-  #
-  # def get_number(number) do
-  #   number;
-  # end
+  def get_number(number) when number < 10 do
+    "0" <> Integer.to_string(number);
+  end
+
+  def get_number(number) do
+    number;
+  end
 end

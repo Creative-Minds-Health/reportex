@@ -72,7 +72,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     end
     send(progress, {:update_total, length(dates)})
     diagnosis_template = add_group_ages(record["diagnosis_template"], record["group_ages"])
-    {:ok, collector} = Collector.start(%{"parent" => self(), "socket_id" => data["socket_id"], "diagnosis_template" => diagnosis_template})
+    {:ok, collector} = Collector.start(%{"parent" => self(), "socket_id" => data["socket_id"], "diagnosis_template" => diagnosis_template, "progress" => progress})
     Process.monitor(collector)
     for index <- 1..n_workers,
     # query["consultation_date"]["$gte"],
@@ -125,7 +125,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     #Logger.info ["Limit: #{inspect limit}, total: #{inspect total}, skip: #{inspect skip}, documents: #{inspect documents}, page: #{inspect page}"]
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
-        send(pid, :run)
+        send(pid, {:run, skip, limit, documents})
         send(self(), {:run, (page + 1) * documents})
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
