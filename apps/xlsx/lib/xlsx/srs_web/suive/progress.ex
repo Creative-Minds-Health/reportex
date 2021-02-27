@@ -57,7 +57,7 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
   def handle_info({:update_status, status}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
-  def handle_info({:documents, new_documents}, %{"documents" => documents}=state) do
+  def handle_info({:documents, new_documents},state) do
     {:noreply, Map.put(state, "documents", new_documents), 500}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do

@@ -125,7 +125,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     #Logger.info ["Limit: #{inspect limit}, total: #{inspect total}, skip: #{inspect skip}, documents: #{inspect documents}, page: #{inspect page}"]
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
-        send(pid, {:run, skip, limit, documents})
+        send(pid, {:run, page})
         send(self(), {:run, (page + 1) * documents})
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
@@ -138,7 +138,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   def handle_info({:run, limit}, %{"page" => page, "total" => total, "skip" => skip, "documents" => _documents}=state)  when limit > total do
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
-        send(pid, {:run, skip, total, (total - skip)})
+        send(pid, {:run, page})
         send(self(), {:run, total})
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
