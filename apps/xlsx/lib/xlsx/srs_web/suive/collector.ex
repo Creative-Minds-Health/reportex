@@ -20,8 +20,8 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   end
 
   @impl true
-  def handle_call({:concat, data, documents}, _from, %{"diagnosis_template" => diagnosis_template, "progress" => progress}=state) do
-    send(progress, {:documents, documents})
+  def handle_call({:concat, data}, _from, %{"diagnosis_template" => diagnosis_template, "progress" => progress}=state) do
+    send(progress, :documents)
     {:reply, :ok, Map.put(state, "diagnosis_template", Concat.concat_data(data, diagnosis_template, Map.keys(diagnosis_template)))}
   end
   # def handle_call({:concat, records, documents}, _from, %{"rows" => rows, "progress" => progress}=state) do

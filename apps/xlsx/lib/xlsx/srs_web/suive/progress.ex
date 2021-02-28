@@ -57,13 +57,17 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
   def handle_info({:update_status, status}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
-  def handle_info({:documents, new_documents},state) do
-    {:noreply, Map.put(state, "documents", new_documents), 500}
+  def handle_info(:documents, %{"documents" => documents}=state) do
+    # Logger.info ["sssss: #{inspect documents}"]
+    {:noreply, Map.put(state, "documents", documents + 1), 500}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "total", total) |> Map.put("status", :working), progress_timeout}
   end
   def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total, "socket_id" => socket_id}=state) do
+    # Logger.info ["sssss: #{inspect documents}"]
+    # Logger.info ["total: #{inspect total}"]
+    # Logger.info ["percent: #{inspect trunc((documents * 100) / total)}"]
     map = case status do
       :waiting -> %{"message" => "Calculando progreso"}
       :working -> %{"message" => "Consultando información...", "Porcentaje" => trunc((documents * 100) / total)}
