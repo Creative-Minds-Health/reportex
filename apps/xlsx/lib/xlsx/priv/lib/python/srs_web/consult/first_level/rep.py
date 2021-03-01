@@ -7,12 +7,12 @@ import sys
 import time
 import datetime
 import json
-import pytz
-from bson import ObjectId
-from pymongo import MongoClient
+# import pytz
+# from bson import ObjectId
+# from pymongo import MongoClient
 from openpyxl import Workbook
 from openpyxl import load_workbook
-from bson.codec_options import CodecOptions
+# from bson.codec_options import CodecOptions
 from openpyxl.drawing.image import Image
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font
 
@@ -163,7 +163,7 @@ def generateReport (consults,data):
 
     wb.active = 0
     #wb.save(data.get('path'))
-    wb.save("/home/user/file.xlsx")
+    wb.save("/home/lety/file123.xlsx")
     print ('success')
 
 

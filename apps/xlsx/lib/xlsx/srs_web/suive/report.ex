@@ -76,7 +76,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     for index <- 1..n_workers,
     # query["consultation_date"]["$gte"],
     # query["consultation_date"]["$lt"]
-      {:ok, pid} = Worker.start(%{"index" => index, "parent" => self(), "query" => Suive.make_query(data["query"], Enum.at(dates, index)), "collector" => collector, "collection" => "attentions", "diagnosis_template" => diagnosis_template}),
+      {:ok, pid} = Worker.start(%{"index" => index, "parent" => self(), "query" => Suive.make_query(data["query"], Enum.at(dates, index - 1)), "collector" => collector, "collection" => "attentions", "diagnosis_template" => diagnosis_template}),
       Process.monitor(pid),
       :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},

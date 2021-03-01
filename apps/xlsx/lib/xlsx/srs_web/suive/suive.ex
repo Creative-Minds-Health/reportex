@@ -85,14 +85,19 @@ defmodule Xlsx.SrsWeb.Suive.Suive do
     [iterate_genders(genders, h) | update_group_ages(genders, t)]
   end
 
+  def iterate_genders([], group_age_item) do
+    group_age_item
+  end
+
   def iterate_genders([h|t], group_age_item) do
     name = group_age_item["name"]
     case {Map.get(h, name, 0), Map.get(h, "gender", :nill)} do
-      {0, _} -> group_age_item
+      {0, _} ->
+        iterate_genders(t, group_age_item)
       {number, 1} ->
-        Map.put(group_age_item, "mens", Map.get(group_age_item, "mens") + number)
+        iterate_genders(t, Map.put(group_age_item, "mens", Map.get(group_age_item, "mens") + number))
       {number, 2} ->
-        Map.put(group_age_item, "womens", Map.get(group_age_item, "womens") + number)
+        iterate_genders(t, Map.put(group_age_item, "womens", Map.get(group_age_item, "womens") + number))
     end
   end
 end
