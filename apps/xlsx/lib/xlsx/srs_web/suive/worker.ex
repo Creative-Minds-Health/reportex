@@ -31,7 +31,7 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
   end
 
   @impl true
-  def handle_info({:run, _skip, limit, _documents}, %{"query" => query, "parent" => parent, "collection" => collection, "diagnosis_template" => diagnosis_template, "collector" => collector}=state) do
+  def handle_info(:run, %{"query" => query, "parent" => parent, "collection" => collection, "diagnosis_template" => diagnosis_template, "collector" => collector}=state) do
     cursor = Mongo.aggregate(:mongo, collection, query, [timeout: 60_000]) |> Enum.to_list()
     groups = cursor
       |> Stream.map(&(
@@ -39,7 +39,7 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
       ))
       |> Enum.to_list()
       report = Suive.search_diagnosis(groups, diagnosis_template, Map.keys(diagnosis_template))
-      :ok = GenServer.call(collector, {:concat, report, limit})
+      :ok = GenServer.call(collector, {:concat, report})
       :ok = GenServer.call(parent, :waiting_status)
       send(parent, {:run_by_worker, self()})
       #:ok = GenServer.call(collector, {:concat, report})
@@ -57,7 +57,7 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
     {:noreply, state}
   end
 
-  def handle_info(msg, state) do
+  def handle_info(_msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE #{inspect state}"
     {:noreply, state}
   end

@@ -2,7 +2,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   use GenServer
   require Logger
 
-  alias Xlsx.Mongodb.Mongodb, as: Mongodb
   alias Xlsx.SrsWeb.Suive.Progress, as: Progress
   alias Xlsx.SrsWeb.Suive.Collector, as: Collector
   alias Xlsx.SrsWeb.Suive.Worker, as: Worker
@@ -62,7 +61,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   #   GenServer.cast(self(), :stop)
   #   {:noreply, state}
   # end
-  def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
+  def handle_info({:count, _total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
     dates = Suive.date_range(query, record["config"]["days_range"])
@@ -121,11 +120,11 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     {:noreply, state}
   end
 
-  def handle_info({:run, limit}, %{"total" => total, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
+  def handle_info({:run, limit}, %{"total" => total, "documents" => documents, "page" => page}=state) when limit <= total do
     #Logger.info ["Limit: #{inspect limit}, total: #{inspect total}, skip: #{inspect skip}, documents: #{inspect documents}, page: #{inspect page}"]
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
-        send(pid, {:run, skip, limit, documents})
+        send(pid, :run)
         send(self(), {:run, (page + 1) * documents})
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
@@ -135,10 +134,10 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     end
     {:noreply, new_state}
   end
-  def handle_info({:run, limit}, %{"page" => page, "total" => total, "skip" => skip, "documents" => _documents}=state)  when limit > total do
+  def handle_info({:run, limit}, %{"page" => page, "total" => total, "documents" => _documents}=state)  when limit > total do
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
-        send(pid, {:run, skip, total, (total - skip)})
+        send(pid, :run)
         send(self(), {:run, total})
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
@@ -214,7 +213,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     end
   end
 
-  def add_group_ages([], ages, group) do
+  def add_group_ages([], _ages, group) do
     group
   end
 

@@ -16,7 +16,7 @@ defmodule Xlsx.SrsWeb.Suive.Concat do
     new_group
   end
   def iterate_group_template([ht | tt], [hd | td], new_group) do
-    new_group_ages = case ht["name"] === hd["name"] do
+    new_group_ages = case ht["name"] === hd["name"] and  ht["epiKey"] === hd["epiKey"] do
       true -> iterate_group_ages(ht["groupAges"], hd["groupAges"], [])
       _-> ht["groupAges"]
     end
