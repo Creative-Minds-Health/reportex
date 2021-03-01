@@ -92,8 +92,21 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   # end
   def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress}=state) do
     send(progress, {:update_status, :writing})
-    Logger.info ["generar archivo: #{inspect diagnosis_template}"]
+    #Logger.info ["generar archivo: #{inspect diagnosis_template}"]
     file_name = get_date_now(:undefined, "-")
+
+    python_path = :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level") |> String.to_charlist()
+    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python'}])
+    json = Poison.encode!(%{
+      "consults" => diagnosis_template,
+      "data" => %{
+        "pathTemplate" => :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level/SUIVE-400.xlsx"),
+        "logo" => :filename.join(:code.priv_dir(:xlsx), "assets/logoSuive.png")
+      }
+    })
+    :python.call(pid, :rep, :initrep, [
+      json
+    ])
     send(progress, {:done, file_name})
     {:noreply, state}
   end

@@ -33,7 +33,8 @@ defmodule Xlsx.MixProject do
       {:tzdata, "~> 1.1"},
       {:elixlsx, "~> 0.4.2"},
       {:poison, "~> 3.1"},
-      {:nodejs, "~> 2.0"}
+      {:nodejs, "~> 2.0"},
+      {:erlport, "~> 0.10.1"}
     ]
   end
 end
