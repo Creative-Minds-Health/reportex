@@ -6,6 +6,7 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   # alias Elixlsx.Workbook
   # alias Xlsx.Logger.LibLogger, as: LibLogger
   alias Xlsx.SrsWeb.Suive.Concat, as: Concat
+  alias Xlsx.Date.Date, as: DateLib
 
   # API
   def start(state) do
@@ -93,23 +94,31 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress, "params" => params}=state) do
     send(progress, {:update_status, :writing})
     #Logger.info ["generar archivo: #{inspect diagnosis_template}"]
-    file_name = get_date_now(:undefined, "-")
-
     python_path = :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level") |> String.to_charlist()
+<<<<<<< HEAD
     {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python'}])
 
+=======
+    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python3.7'}])
+    file_name = DateLib.file_name_date("-") <> ".xlsx"
+    file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
+>>>>>>> 65ff16fe08e10f8206d83a3e3e9eed794b924f4b
     json = Poison.encode!(%{
       "consults" => diagnosis_template,
       "data" => %{
         "pathTemplate" => :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level/SUIVE-400.xlsx"),
         "logo" => :filename.join(:code.priv_dir(:xlsx), "assets/logoSuive.png"),
-        "params" => Map.put(get_params(params), "institution_name", "SECRETARÍA DE SALUD")
+        "params" => Map.put(get_params(params), "institution_name", "SECRETARÍA DE SALUD"),
+        "path" => :filename.join(file_path, file_name)
       }
     })
-    :python.call(pid, :rep, :initrep, [
-      json
-    ])
-    send(progress, {:done, file_name})
+    response = :python.call(pid, :rep, :initrep, [json])
+    case Map.get(response, 'success', :false) do
+      :true -> send(progress, {:done, file_path, file_name})
+      _-> Logger.error ["paso mal"]
+    end
+    #Logger.info ["r: #{inspect r}"]
+    #send(progress, {:done, file_path})
     {:noreply, state}
   end
   def handle_cast(:stop, state) do
