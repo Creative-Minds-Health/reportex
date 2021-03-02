@@ -135,7 +135,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
       _ ->
-        Logger.info ["No hay mas"]
         state
     end
     {:noreply, new_state}
@@ -172,7 +171,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     end
     {:noreply, state}
   end
-
   def handle_info(msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE #{inspect msg}"
     {:noreply, state}

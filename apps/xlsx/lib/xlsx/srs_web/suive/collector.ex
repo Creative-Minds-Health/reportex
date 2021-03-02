@@ -125,6 +125,9 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   end
 
   @impl true
+  def handle_info({:EXIT, _pid, :normal}, state) do
+    {:noreply, state}
+  end
   def handle_info(msg, state) do
     Logger.info "UNKNOWN INFO MESSAGE #{inspect msg}"
     {:noreply, state}
