@@ -95,14 +95,10 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
     send(progress, {:update_status, :writing})
     #Logger.info ["generar archivo: #{inspect diagnosis_template}"]
     python_path = :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level") |> String.to_charlist()
-<<<<<<< HEAD
-    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python'}])
 
-=======
-    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python3.7'}])
+    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python2'}])
     file_name = DateLib.file_name_date("-") <> ".xlsx"
     file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
->>>>>>> 65ff16fe08e10f8206d83a3e3e9eed794b924f4b
     json = Poison.encode!(%{
       "consults" => diagnosis_template,
       "data" => %{
@@ -113,7 +109,7 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
       }
     })
     response = :python.call(pid, :rep, :initrep, [json])
-    case Map.get(response, 'success', :false) do
+    case Map.get(response, "success", :false) do
       :true -> send(progress, {:done, file_path, file_name})
       _-> Logger.error ["paso mal"]
     end
