@@ -71,12 +71,18 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     end
     send(progress, {:update_total, length(dates)})
     diagnosis_template = add_group_ages(record["diagnosis_template"], record["group_ages"])
-    {:ok, collector} = Collector.start(%{"parent" => self(), "socket_id" => data["socket_id"], "diagnosis_template" => diagnosis_template, "progress" => progress})
+    {:ok, collector} = Collector.start(%{"parent" => self(), "socket_id" => data["socket_id"], "diagnosis_template" => diagnosis_template, "progress" => progress, "params" => data["params"]})
     Process.monitor(collector)
+
+    collection = case data["params"]["level"] do
+      "1" -> "attentions"
+      _ -> "attentions_n2"
+    end
+
     for index <- 1..n_workers,
     # query["consultation_date"]["$gte"],
     # query["consultation_date"]["$lt"]
-      {:ok, pid} = Worker.start(%{"index" => index, "parent" => self(), "query" => Suive.make_query(data["query"], Enum.at(dates, index - 1)), "collector" => collector, "collection" => "attentions", "diagnosis_template" => diagnosis_template}),
+      {:ok, pid} = Worker.start(%{"index" => index, "parent" => self(), "query" => Suive.make_query(data["query"], Enum.at(dates, index - 1)), "collector" => collector, "collection" => collection, "diagnosis_template" => diagnosis_template}),
       Process.monitor(pid),
       :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},

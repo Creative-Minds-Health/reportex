@@ -48,7 +48,7 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
     # #:gen_tcp.send(res_socket, json_response)
     # LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
     # LibLogger.send_progress(res_socket, json_response)
-    Logger.info ["El collector terminó de juntar la información y lo escribio en python: #{inspect file_name}"]
+    # Logger.info ["El collector terminó de juntar la información y lo escribio en python: #{inspect file_name}"]
     {:ok, json_response} = Poison.encode(Map.put(%{}, "url", file_name) |> Map.put("socket_id", socket_id))
     :gen_tcp.send(res_socket, json_response)
     send(parent, :kill)

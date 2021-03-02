@@ -90,18 +90,20 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   #   # GenServer.cast(self(), :stop)
   #   {:noreply, Map.put(state, "rows", rows)}
   # end
-  def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress}=state) do
+  def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress, "params" => params}=state) do
     send(progress, {:update_status, :writing})
     #Logger.info ["generar archivo: #{inspect diagnosis_template}"]
     file_name = get_date_now(:undefined, "-")
 
     python_path = :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level") |> String.to_charlist()
     {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python'}])
+
     json = Poison.encode!(%{
       "consults" => diagnosis_template,
       "data" => %{
         "pathTemplate" => :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level/SUIVE-400.xlsx"),
-        "logo" => :filename.join(:code.priv_dir(:xlsx), "assets/logoSuive.png")
+        "logo" => :filename.join(:code.priv_dir(:xlsx), "assets/logoSuive.png"),
+        "params" => Map.put(get_params(params), "institution_name", "SECRETARÍA DE SALUD")
       }
     })
     :python.call(pid, :rep, :initrep, [
@@ -118,8 +120,8 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   end
 
   @impl true
-  def handle_info(_msg, state) do
-    Logger.info "UNKNOWN INFO MESSAGE"
+  def handle_info(msg, state) do
+    Logger.info "UNKNOWN INFO MESSAGE #{inspect msg}"
     {:noreply, state}
   end
 
@@ -153,5 +155,47 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
 
   def get_number(number) do
     number;
+  end
+
+  def get_params(params) do
+    [state | _] = get_state(Map.get(params, "state", :nil))
+    [jurisdiction | _] = get_jurisdiction(state["_id"], Map.get(params, "jurisdiction", :nil))
+    [clue | _] = get_clue(Map.get(params, "clue", :nil))
+
+    response = %{"state_id" => state["_id"], "state" => state["name"], "jurisdiction_id" => jurisdiction["key"], "jurisdiction" => jurisdiction["name"], "clueName" => clue["name"], "institution_name" => clue["institution_name"], "municipality" => clue["municipality_name"], "municipality_key" => clue["municipality_key"], "clue" => params["clue"], "startDate" => get_dates(params["startDate"]), "endDate" => get_dates(params["endDate"])}
+
+    case clue["municipality_key"] != "" do
+      true ->
+        [locality | _] = get_locality(clue["municipality_key"])
+        Map.put(response, "location", locality["name"])
+      _ -> response
+    end
+  end
+
+  def get_state(state) do
+    Mongo.find(:mongo, "states", %{"_id" => state}, [timeout: 60_000]) |> Enum.to_list()
+  end
+
+  def get_jurisdiction(_state_id, :nil) do
+    [%{"_id" => "", "name" => ""}]
+  end
+  def get_jurisdiction(state_id, key) do
+    Mongo.find(:mongo, "jurisdictions", %{"state_id" => state_id, "key" => key}, [timeout: 60_000]) |> Enum.to_list()
+  end
+
+  def get_clue(:nil) do
+    [%{"name" => "", "institution_name" => "", "municipality_name" => "", "municipality_key" => ""}]
+  end
+  def get_clue(clue) do
+    Mongo.find(:mongo, "cies", %{"_id" => clue}, [timeout: 60_000]) |> Enum.to_list()
+  end
+
+  def get_locality(municipality) do
+    Mongo.find(:mongo, "localities", %{"municipality_key" => municipality}, [timeout: 60_000]) |> Enum.to_list()
+  end
+
+  def get_dates(date) do
+    [month, day, year] = String.split(date, "/")
+    %{"day" => day, "month" => month, "year" => year}
   end
 end

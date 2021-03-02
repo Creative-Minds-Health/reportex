@@ -63,44 +63,44 @@ def generateReport (consults,data):
 
         firstRow = 13
         secondRow = 15
-        # if get(data,['params','clueName']):
-        #     subtitleStyle(ws.cell(row = firstRow, column = letters.index('D'))).value = get(data,['params','clueName'])
-        #
-        # if get(data,['params','startDate','day']):
-        #     subtitleStyle(ws.cell(row = firstRow, column = letters.index('M'))).value = get(data,['params','startDate','day'])
-        #
-        # if get(data,['params','startDate','month']):
-        #     subtitleStyle(ws.cell(row = firstRow, column = letters.index('O'))).value = get(data,['params','startDate','month'])
-        #
-        # if get(data,['params','startDate','year']):
-        #     subtitleStyle(ws.cell(row = firstRow, column = letters.index('S'))).value = get(data,['params','startDate','year'])
-        #
-        # if get(data,['params','endDate','day']):
-        #     subtitleStyle(ws.cell(row = firstRow, column = letters.index('U'))).value = get(data,['params','endDate','day'])
-        #
-        # if get(data,['params','endDate','month']):
-        #     subtitleStyle(ws.cell(row = firstRow, column = letters.index('W'))).value = get(data,['params','endDate','month'])
-        #
-        # if get(data,['params','endDate','year']):
-        #     subtitleStyle(ws.cell(row = firstRow, column = letters.index('AA'))).value = get(data,['params','endDate','year'])
-        #
-        # if get(data,['params','clue']):
-        #     subtitleStyle(ws.cell(row = firstRow, column = letters.index('AD'))).value = get(data,['params','clue'])
-        #
-        # if get(data,['params','location']):
-        #     subtitleStyle(ws.cell(row = secondRow, column = letters.index('D'))).value = get(data,['params','location'])
-        #
-        # if get(data,['params','municipality']):
-        #     subtitleStyle(ws.cell(row = secondRow, column = letters.index('J'))).value = get(data,['params','municipality'])
-        #
-        # if get(data,['params','jurisdiction']):
-        #     subtitleStyle(ws.cell(row = secondRow, column = letters.index('T'))).value = get(data,['params','jurisdiction'])
-        #
-        # if get(data,['params','state']):
-        #     subtitleStyle(ws.cell(row = secondRow, column = letters.index('AC'))).value = get(data,['params','state'])
-        #
-        # if get(data,['params','institution_name']):
-        #     subtitleStyle(ws.cell(row = 17, column = letters.index('J'))).value = get(data,['params','institution_name'])
+        if get(data,['params','clueName']):
+            subtitleStyle(ws.cell(row = firstRow, column = letters.index('D'))).value = get(data,['params','clueName'])
+
+        if get(data,['params','startDate','day']):
+            subtitleStyle(ws.cell(row = firstRow, column = letters.index('M'))).value = get(data,['params','startDate','day'])
+
+        if get(data,['params','startDate','month']):
+            subtitleStyle(ws.cell(row = firstRow, column = letters.index('O'))).value = get(data,['params','startDate','month'])
+
+        if get(data,['params','startDate','year']):
+            subtitleStyle(ws.cell(row = firstRow, column = letters.index('S'))).value = get(data,['params','startDate','year'])
+
+        if get(data,['params','endDate','day']):
+            subtitleStyle(ws.cell(row = firstRow, column = letters.index('U'))).value = get(data,['params','endDate','day'])
+
+        if get(data,['params','endDate','month']):
+            subtitleStyle(ws.cell(row = firstRow, column = letters.index('W'))).value = get(data,['params','endDate','month'])
+
+        if get(data,['params','endDate','year']):
+            subtitleStyle(ws.cell(row = firstRow, column = letters.index('AA'))).value = get(data,['params','endDate','year'])
+
+        if get(data,['params','clue']):
+            subtitleStyle(ws.cell(row = firstRow, column = letters.index('AD'))).value = get(data,['params','clue'])
+
+        if get(data,['params','location']):
+            subtitleStyle(ws.cell(row = secondRow, column = letters.index('D'))).value = get(data,['params','location'])
+
+        if get(data,['params','municipality']):
+            subtitleStyle(ws.cell(row = secondRow, column = letters.index('J'))).value = get(data,['params','municipality'])
+
+        if get(data,['params','jurisdiction']):
+            subtitleStyle(ws.cell(row = secondRow, column = letters.index('T'))).value = get(data,['params','jurisdiction'])
+
+        if get(data,['params','state']):
+            subtitleStyle(ws.cell(row = secondRow, column = letters.index('AC'))).value = get(data,['params','state'])
+
+        if get(data,['params','institution_name']):
+            subtitleStyle(ws.cell(row = 17, column = letters.index('J'))).value = get(data,['params','institution_name'])
 
     wb.active = 0
     ws = wb.active
