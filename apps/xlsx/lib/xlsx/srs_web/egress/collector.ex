@@ -5,6 +5,7 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
   alias Elixlsx.Sheet
   alias Elixlsx.Workbook
   alias Xlsx.Logger.LibLogger, as: LibLogger
+  alias Xlsx.Date.Date, as: DateLib
 
   # API
   def start(state) do
@@ -48,7 +49,7 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
     }
     |> Sheet.set_cell("C2", "Reporte de egresos", bold: true, font: "Arial", size: 19, align_horizontal: :center, align_vertical: :center)
     |> Sheet.set_cell("C4", "Periodo:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
-    |> Sheet.set_cell("D4", get_date_now(query["stay.exit_date"]["$gte"], "/") <> " - " <> get_date_now(query["stay.exit_date"]["$lte"], "/"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
+    |> Sheet.set_cell("D4", DateLib.get_date_now(query["stay.exit_date"]["$gte"], "/") <> " - " <> DateLib.get_date_now(query["stay.exit_date"]["$lte"], "/"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
 
     |> Sheet.set_cell("E4", "Jurisdicción:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
     |> Sheet.set_cell("F4", Map.get(query, "jurisdiction.key", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
@@ -77,7 +78,7 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
     |> Sheet.set_cell("E6", "Código CIE-9 de procedimiento:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
     |> Sheet.set_cell("F6", Map.get(query, "procedures.diagnosis.key_diagnosis", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center,)
 
-    file_name = get_date_now(:undefined, "-")
+    file_name = DateLib.get_date_now(:undefined, "-")
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(file_name)
 
     LibLogger.save_event(__MODULE__, :done_xlsx, socket_id, %{})
@@ -109,24 +110,5 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
       [] -> "Sin filtro"
       [%{"patient.fullname" => %{"$options" => _, "$regex" => fullname}}|_] -> fullname
     end
-  end
-
-  def get_date_now(:undefined, separator) do
-    today = DateTime.utc_now
-    [today.year, today.month, today.day]
-    Enum.join [get_number(today.day), get_number(today.month), today.year], separator
-  end
-
-  def get_date_now(date, separator) do
-    [date.year, date.month, date.day]
-    Enum.join [get_number(date.day), get_number(date.month), date.year], separator
-  end
-
-  def get_number(number) when number < 10 do
-    "0" <> Integer.to_string(number);
-  end
-
-  def get_number(number) do
-    number;
   end
 end

@@ -35,22 +35,21 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
 
 
   @impl true
-  def handle_info({:done , file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
-    # map = Application.get_env(:xlsx, :srs_gcs)
+  def handle_info({:done , file_path, file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
+    map = Application.get_env(:xlsx, :srs_gcs)
     # date = DateTime.now!("America/Mexico_City")
     # time = DateLib.string_time(date, "-")
-    # new_map =
-    #   Map.put(map, "file", :filename.join(File.cwd!(), file_name))
-    #   |> Map.put("destination", Map.get(map, "destination") <> file_name <> "_" <> time  <> ".xlsx")
-    #   |> Map.put("expires", Map.get(map, "expires", 1))
-    # # {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
-    # {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id))
-    # #:gen_tcp.send(res_socket, json_response)
-    # LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
-    # LibLogger.send_progress(res_socket, json_response)
-    Logger.info ["El collector terminó de juntar la información y lo escribio en python: #{inspect file_name}"]
-    {:ok, json_response} = Poison.encode(Map.put(%{}, "url", file_name) |> Map.put("socket_id", socket_id))
-    :gen_tcp.send(res_socket, json_response)
+    new_map =
+      Map.put(map, "file", :filename.join(file_path, file_name))
+      |> Map.put("destination", :filename.join(Map.get(map, "destination"), "suive/" <> file_name))
+      |> Map.put("expires", Map.get(map, "expires", 1))
+    {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
+    {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
+
+    LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
+    LibLogger.send_progress(res_socket, json_response)
+    # Logger.info ["El collector terminó de juntar la información y lo escribio en python: #{inspect file_name}"]
+
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end

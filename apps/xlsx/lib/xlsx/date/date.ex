@@ -1,5 +1,6 @@
 defmodule Xlsx.Date.Date do
   require Logger
+  alias Xlsx.Integer.Integer, as: IntLib
 
   def string_time(date, separator) do
     string_number(date.hour) <> separator <> string_number(date.minute) <> separator <> string_number(date.second)
@@ -13,7 +14,6 @@ defmodule Xlsx.Date.Date do
     date_rage({from_date, to_date}, {:diff, Date.diff(to_date, from_date)}, days - 1)
       |> Enum.reverse()
   end
-
   def transform_date_range([], _config) do
     []
   end
@@ -27,9 +27,24 @@ defmodule Xlsx.Date.Date do
     ]
   end
 
+  def get_date_now(:undefined, separator) do
+    today = DateTime.utc_now
+    [today.year, today.month, today.day]
+    Enum.join [IntLib.get_number(today.day), IntLib.get_number(today.month), today.year], separator
+  end
+
+  def get_date_now(date, separator) do
+    [date.year, date.month, date.day]
+    Enum.join [IntLib.get_number(date.day), IntLib.get_number(date.month), date.year], separator
+  end
 
 
-
+  def file_name_date(separator) do
+    date = DateTime.now!("America/Mexico_City")
+    [time | _] = DateTime.to_time(date) |> Time.to_string() |> String.replace(":", "-") |> String.split(".")
+    {year, month, day} = Date.to_erl(date)
+    string_number(day) <> separator <> string_number(month) <> separator <> string_number(year) <> "_" <> time
+  end
   defp date_rage({from, to}, {:diff, diff}, days) when diff > days do
     decrease_date = Date.add(to, -days)
     new_to = Date.add(to, -days) |> Date.add(-1)

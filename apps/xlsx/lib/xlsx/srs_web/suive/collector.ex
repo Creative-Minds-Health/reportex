@@ -6,6 +6,7 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   # alias Elixlsx.Workbook
   # alias Xlsx.Logger.LibLogger, as: LibLogger
   alias Xlsx.SrsWeb.Suive.Concat, as: Concat
+  alias Xlsx.Date.Date, as: DateLib
 
   # API
   def start(state) do
@@ -93,21 +94,25 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress}=state) do
     send(progress, {:update_status, :writing})
     #Logger.info ["generar archivo: #{inspect diagnosis_template}"]
-    file_name = get_date_now(:undefined, "-")
-
     python_path = :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level") |> String.to_charlist()
-    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python'}])
+    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python3.7'}])
+    file_name = DateLib.file_name_date("-") <> ".xlsx"
+    file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
     json = Poison.encode!(%{
       "consults" => diagnosis_template,
       "data" => %{
         "pathTemplate" => :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level/SUIVE-400.xlsx"),
-        "logo" => :filename.join(:code.priv_dir(:xlsx), "assets/logoSuive.png")
+        "logo" => :filename.join(:code.priv_dir(:xlsx), "assets/logoSuive.png"),
+        "path" => :filename.join(file_path, file_name)
       }
     })
-    :python.call(pid, :rep, :initrep, [
-      json
-    ])
-    send(progress, {:done, file_name})
+    response = :python.call(pid, :rep, :initrep, [json])
+    case Map.get(response, 'success', :false) do
+      :true -> send(progress, {:done, file_path, file_name})
+      _-> Logger.error ["paso mal"]
+    end
+    #Logger.info ["r: #{inspect r}"]
+    #send(progress, {:done, file_path})
     {:noreply, state}
   end
   def handle_cast(:stop, state) do
@@ -118,8 +123,8 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   end
 
   @impl true
-  def handle_info(_msg, state) do
-    Logger.info "UNKNOWN INFO MESSAGE"
+  def handle_info(msg, state) do
+    Logger.info "UNKNOWN INFO MESSAGE: #{inspect msg}"
     {:noreply, state}
   end
 
@@ -136,22 +141,4 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   #   end
   # end
   #
-  def get_date_now(:undefined, separator) do
-    today = DateTime.utc_now
-    [today.year, today.month, today.day]
-    Enum.join [get_number(today.day), get_number(today.month), today.year], separator
-  end
-  #
-  # def get_date_now(date, separator) do
-  #   [date.year, date.month, date.day]
-  #   Enum.join [get_number(date.day), get_number(date.month), date.year], separator
-  # end
-  #
-  def get_number(number) when number < 10 do
-    "0" <> Integer.to_string(number);
-  end
-
-  def get_number(number) do
-    number;
-  end
 end

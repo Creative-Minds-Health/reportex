@@ -163,8 +163,8 @@ def generateReport (consults,data):
 
     wb.active = 0
     #wb.save(data.get('path'))
-    wb.save("/home/lety/file123.xlsx")
-    print ('success')
+    wb.save(data.get("path"))
+    return {"success" : True}
 
 
 # Utilidades
@@ -186,4 +186,4 @@ def initrep (str_json):
     data = Json.get("data")
     consults = Json.get("consults")
 
-    generateReport(consults,data)
+    return generateReport(consults,data)
