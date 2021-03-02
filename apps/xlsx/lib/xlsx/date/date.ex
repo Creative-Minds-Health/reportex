@@ -55,10 +55,10 @@ defmodule Xlsx.Date.Date do
   end
 
 
-  defp string_number(number) when number < 10 do
+  def string_number(number) when number < 10 do
     "0" <> Integer.to_string(number);
   end
-  defp string_number(number) do
+  def string_number(number) do
     Integer.to_string(number);
   end
 

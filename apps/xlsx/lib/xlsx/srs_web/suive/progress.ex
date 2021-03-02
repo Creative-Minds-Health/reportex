@@ -3,7 +3,6 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
   require Logger
 
   alias Xlsx.Date.Date, as: DateLib
-  alias Xlsx.Cluster.Listener, as: Listener
   alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API
@@ -43,9 +42,9 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
       |> Map.put("expires", Map.get(map, "expires", 1))
     {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
     {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
-
     LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
     LibLogger.send_progress(res_socket, json_response)
+    :ok = File.rm(:filename.join(file_path, file_name))
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end
@@ -53,7 +52,7 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
   def handle_info(:documents, %{"documents" => documents}=state) do
-    {:noreply, Map.put(state, "documents", documents + 1), 500}
+    {:noreply, Map.put(state, "documents", documents + 1), 100}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "total", total) |> Map.put("status", :working), progress_timeout}
@@ -61,7 +60,9 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
   def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total, "socket_id" => socket_id}=state) do
     map = case status do
       :waiting -> %{"message" => "Calculando progreso"}
-      :working -> %{"message" => "Consultando información...", "Porcentaje" => trunc((documents * 100) / total)}
+      :working ->
+        percent = trunc((documents * 100) / total)
+        %{"message" => "Porcentaje " <> Integer.to_string(percent) <> "%", "Porcentaje" => percent}
       :writing -> %{"message" => "Generando archivo excel..."}
       _-> %{}
     end
@@ -93,12 +94,4 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
     get_number(day) <> "/" <> get_number(month) <> "/" <> get_number(year) <> " " <> get_number(hour) <> ":" <> get_number(minutes) <> ":" <> get_number(seconds)
   end
 
-  defp number_to_string(number) do
-    number
-      |> Integer.to_char_list
-      |> Enum.reverse
-      |> Enum.chunk_every(3)
-      |> Enum.join(",")
-      |> String.reverse
-  end
 end
