@@ -27,9 +27,6 @@ defmodule Xlsx.SrsWeb.Suive.Suive do
     %{"group2" => diagnosis}
   end
 
-  # def search_diagnosis(groups, []) do
-  #   :ok
-  # end
   def search_diagnosis(groups, diagnosis_template, []) do
     diagnosis_template
   end

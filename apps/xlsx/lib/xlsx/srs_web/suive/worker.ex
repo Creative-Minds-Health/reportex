@@ -42,18 +42,6 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
       :ok = GenServer.call(collector, {:concat, report})
       :ok = GenServer.call(parent, :waiting_status)
       send(parent, {:run_by_worker, self()})
-      #:ok = GenServer.call(collector, {:concat, report})
-    # {:ok, _date} = DateTime.now("America/Mexico_City")
-    # records = cursor
-    #   |> Stream.map(&(
-    #     Egress.iterate_fields(&1, rows)
-    #   ))
-    #   |> Enum.to_list()
-    # {:ok, _date2} = DateTime.now("America/Mexico_City")
-    # :ok = GenServer.call(collector, {:concat, records, documents})
-    # :ok = GenServer.call(parent, :waiting_status)
-    # # Logger.info ["documents... #{inspect documents}"]
-    # send(parent, {:run_by_worker, self()})
     {:noreply, state}
   end
 
@@ -64,7 +52,7 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
 
   @impl true
   def terminate(_reason, _state) do
-    # Logger.warning ["#{inspect self()} worker... terminate"]
+
     :ok
   end
 end

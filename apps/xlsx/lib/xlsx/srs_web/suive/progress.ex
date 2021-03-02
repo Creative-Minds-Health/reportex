@@ -37,8 +37,6 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
   @impl true
   def handle_info({:done , file_path, file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
-    # date = DateTime.now!("America/Mexico_City")
-    # time = DateLib.string_time(date, "-")
     new_map =
       Map.put(map, "file", :filename.join(file_path, file_name))
       |> Map.put("destination", :filename.join(Map.get(map, "destination"), "suive/" <> file_name))
@@ -48,8 +46,6 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
 
     LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
     LibLogger.send_progress(res_socket, json_response)
-    # Logger.info ["El collector terminó de juntar la información y lo escribio en python: #{inspect file_name}"]
-
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end
@@ -57,16 +53,12 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
   def handle_info(:documents, %{"documents" => documents}=state) do
-    # Logger.info ["sssss: #{inspect documents}"]
     {:noreply, Map.put(state, "documents", documents + 1), 500}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
     {:noreply, Map.put(state, "total", total) |> Map.put("status", :working), progress_timeout}
   end
   def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total, "socket_id" => socket_id}=state) do
-    # Logger.info ["sssss: #{inspect documents}"]
-    # Logger.info ["total: #{inspect total}"]
-    # Logger.info ["percent: #{inspect trunc((documents * 100) / total)}"]
     map = case status do
       :waiting -> %{"message" => "Calculando progreso"}
       :working -> %{"message" => "Consultando información...", "Porcentaje" => trunc((documents * 100) / total)}
@@ -76,7 +68,6 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
     {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, response} = Poison.encode(Map.put(map, "status", "doing") |> Map.put("socket_id", socket_id) |> Map.put("date_last_update", format_date(date)))
     LibLogger.send_progress(res_socket, response)
-    #:gen_tcp.send(res_socket, response)
     {:noreply, state, progress_timeout}
   end
   def handle_info(_msg, state) do
@@ -86,7 +77,6 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
 
   @impl true
   def terminate(_reason, _state) do
-    # Logger.warning ["#{inspect self()}... terminate progress"]
     :ok
   end
 

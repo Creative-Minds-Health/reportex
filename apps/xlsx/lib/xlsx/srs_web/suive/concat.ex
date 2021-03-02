@@ -6,8 +6,6 @@ defmodule Xlsx.SrsWeb.Suive.Concat do
   end
 
   def concat_data(data, diagnosis_template, [h|t]) do
-    # Logger.info ["template: #{inspect Map.get(diagnosis_template, h, [])}"]
-    # Logger.info ["data: #{inspect Map.get(data, h, [])}"]
     new_group_template = iterate_group_template(Map.get(diagnosis_template, h, []), Map.get(data, h, []), [])
     concat_data(data, Map.put(diagnosis_template, h, new_group_template), t)
   end
@@ -20,7 +18,6 @@ defmodule Xlsx.SrsWeb.Suive.Concat do
       true -> iterate_group_ages(ht["groupAges"], hd["groupAges"], [])
       _-> ht["groupAges"]
     end
-
     iterate_group_template(tt, td, new_group ++ [Map.put(ht, "groupAges", new_group_ages)])
   end
 

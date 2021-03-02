@@ -53,14 +53,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   end
 
   @impl true
-  # def handle_info({:count, 0}, %{"progress" => progress, "socket_id" => socket_id, "res_socket" => res_socket}=state) do
-  #   Logger.warning "count 0"
-  #   {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", socket_id))
-  #   :gen_tcp.send(res_socket, response)
-  #   GenServer.cast(progress, :stop)
-  #   GenServer.cast(self(), :stop)
-  #   {:noreply, state}
-  # end
   def handle_info({:count, _total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
@@ -78,10 +70,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
       "1" -> "attentions"
       _ -> "attentions_n2"
     end
-
     for index <- 1..n_workers,
-    # query["consultation_date"]["$gte"],
-    # query["consultation_date"]["$lt"]
       {:ok, pid} = Worker.start(%{"index" => index, "parent" => self(), "query" => Suive.make_query(data["query"], Enum.at(dates, index - 1)), "collector" => collector, "collection" => collection, "diagnosis_template" => diagnosis_template}),
       Process.monitor(pid),
       :ok = MWorker.dirty_write(pid, :waiting, date, self()),
@@ -91,22 +80,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
     send(self(), {:run, page * 1})
     {:noreply, new_state}
-
-    # send(progress, {:update_total, total})
-    # [%{"$match" => query} | _] = data["query"];
-    # {:ok, date} = DateTime.now("America/Mexico_City")
-    # {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
-    # Process.monitor(collector)
-    # for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
-    #   {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
-    #   Process.monitor(pid),
-    #   :ok = MWorker.dirty_write(pid, :waiting, date, self()),
-    #   into: %{},
-    #   do: {pid, %{"date" => date, "status" => :waiting}}
-    # new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
-    # LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
-    # send(self(), {:run, page * record["config"]["documents"]})
-    # {:noreply, new_state}
   end
 
   def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip}=state) when skip >= total do
@@ -117,7 +90,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     msg = Integer.to_string(skip) <> "-" <> Integer.to_string(total)
     {:ok, _response} = Poison.encode(%{"progreso..." => msg})
     send(self(), {:run, page * documents})
-    #Logger.info ["msg: #{inspect msg}"]
     {:noreply, state}
   end
 
@@ -127,7 +99,6 @@ defmodule Xlsx.SrsWeb.Suive.Report do
   end
 
   def handle_info({:run, limit}, %{"total" => total, "documents" => documents, "page" => page}=state) when limit <= total do
-    #Logger.info ["Limit: #{inspect limit}, total: #{inspect total}, skip: #{inspect skip}, documents: #{inspect documents}, page: #{inspect page}"]
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
         send(pid, :run)
