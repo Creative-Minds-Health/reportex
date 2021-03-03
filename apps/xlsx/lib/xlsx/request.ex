@@ -35,8 +35,6 @@ defmodule Xlsx.Request do
     {:noreply, Map.put(state, "socket", socket), 300_000};
   end
   def handle_cast({:stop, node}, %{"socket" => socket, "data" => data}=state) do
-    # Logger.info "stop node #{inspect socket}"
-    # Logger.info "stop node #{inspect data}"
     LibLogger.save_event(__MODULE__, :kill_request, Map.get(data, "socket_id", :nill), %{})
     MNode.decrement_doing(node)
     :ok=:gen_tcp.close(socket)
@@ -58,7 +56,6 @@ defmodule Xlsx.Request do
   end
   def handle_info({:tcp_closed, _reason}, %{"res_socket" => res_socket, "node" => node, "report" => report}=state) do
     GenServer.cast({Listener, node}, {:kill, report})
-    # GenServer.cast(self(), :stop)
     {:noreply, state}
   end
 

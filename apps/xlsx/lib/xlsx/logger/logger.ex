@@ -33,20 +33,19 @@ defmodule Xlsx.Logger.Logger do
   end
   def handle_cast({:save, node, module, :error, socket_id, data}, state) do
     {:ok, date} = DateTime.now("America/Mexico_City")
-    Logger.error ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id} -#{inspect data}"]
-    :mnesia.dirty_write({XlsxLogger, node, module, event, socket_id, data, DateTime.to_unix(date)})
+    Logger.error ["#{inspect node} - #{inspect module} - #{inspect :error} - #{inspect socket_id} -#{inspect data}"]
+    :mnesia.dirty_write({XlsxLogger, node, module, :error, socket_id, data, DateTime.to_unix(date)})
     {:noreply, state}
   end
   def handle_cast({:save, node, module, event, socket_id, data}, state) do
     {:ok, date} = DateTime.now("America/Mexico_City")
-    info = case event do
-      :report_start -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
-      :run_all -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
-      :count -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id} - total: #{inspect data["total"]}"]
-      :tcp_message -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
-      _-> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id} -#{inspect data}"]
+    case event do
+      :report_start -> Logger.info ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
+      :generating_xlsx -> Logger.info ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
+      :done_xlsx -> Logger.info ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
+      #:run_all, :count, :tcp_message, :tcp_accepted -> []
+      _-> []
     end
-    Logger.info info
     :mnesia.dirty_write({XlsxLogger, node, module, event, socket_id, data, DateTime.to_unix(date)})
     {:noreply, state}
   end
