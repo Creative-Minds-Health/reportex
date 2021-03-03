@@ -18,16 +18,16 @@ defmodule Xlsx.Logger.Logger do
   end
 
   @impl true
+  def handle_call({:send_progress, res_socket, response}, from, state) do
+    :ok = :gen_tcp.send(res_socket, response)
+    {:reply, :ok, state}
+  end
   def handle_call(_request, _from, state) do
     reply = :ok
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_cast({:send_progress, res_socket, response}, state) do
-    :gen_tcp.send(res_socket, response)
-    {:noreply, state}
-  end
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
   end
