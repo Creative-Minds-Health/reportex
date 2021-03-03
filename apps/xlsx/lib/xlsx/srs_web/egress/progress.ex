@@ -51,7 +51,7 @@ defmodule Xlsx.SrsWeb.Egress.Progress do
         LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
         LibLogger.send_progress(res_socket, json_response)
       {:error, error} ->
-        {:ok, json_response} = Poison.encode(Map.put(error, "socket_id", socket_id) |> Map.put("status", "error"))
+        {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id) |> Map.put("status", "error") |> Map.put("error", error))
         LibLogger.save_event(__MODULE__, :error, socket_id, %{"error" => error})
         LibLogger.send_progress(res_socket, json_response)
     end
