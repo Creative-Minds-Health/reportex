@@ -31,7 +31,7 @@ defmodule Xlsx.Logger.Logger do
   def handle_cast(:stop, state) do
     {:stop, :normal, state}
   end
-  def handle_cast({:error, node, module, event, socket_id, data}, state) do
+  def handle_cast({:save, node, module, :error, socket_id, data}, state) do
     {:ok, date} = DateTime.now("America/Mexico_City")
     Logger.error ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id} -#{inspect data}"]
     :mnesia.dirty_write({XlsxLogger, node, module, event, socket_id, data, DateTime.to_unix(date)})
