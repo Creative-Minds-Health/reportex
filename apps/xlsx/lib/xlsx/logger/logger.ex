@@ -43,6 +43,8 @@ defmodule Xlsx.Logger.Logger do
       :report_start -> Logger.info ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
       :generating_xlsx -> Logger.info ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
       :done_xlsx -> Logger.info ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
+      :nodeup -> Logger.info ["#{inspect node} - #{inspect module} - #{inspect event}"]
+      :nodedown -> Logger.info ["#{inspect node} - #{inspect module} - #{inspect event}"]
       #:run_all, :count, :tcp_message, :tcp_accepted -> []
       _-> []
     end
