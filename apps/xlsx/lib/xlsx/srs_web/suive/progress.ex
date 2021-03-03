@@ -48,7 +48,9 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
         LibLogger.send_progress(res_socket, json_response)
         :ok = File.rm(:filename.join(file_path, file_name))
       {:error, error} ->
+        {:ok, json_response} = Poison.encode(Map.put(error, "socket_id", socket_id) |> Map.put("status", "error"))
         LibLogger.save_event(__MODULE__, :error, socket_id, %{"error" => error})
+        LibLogger.send_progress(res_socket, json_response)
     end
 
     send(parent, :kill)
