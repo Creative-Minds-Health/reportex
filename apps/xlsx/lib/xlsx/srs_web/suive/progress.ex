@@ -40,11 +40,17 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
       Map.put(map, "file", :filename.join(file_path, file_name))
       |> Map.put("destination", :filename.join(Map.get(map, "destination"), "suive/" <> file_name))
       |> Map.put("expires", Map.get(map, "expires", 1))
-    {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
-    {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
-    LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
-    LibLogger.send_progress(res_socket, json_response)
-    :ok = File.rm(:filename.join(file_path, file_name))
+
+    case NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000) do
+      {:ok, response} ->
+        {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
+        LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
+        LibLogger.send_progress(res_socket, json_response)
+        :ok = File.rm(:filename.join(file_path, file_name))
+      {:error, error} ->
+        LibLogger.save_event(__MODULE__, :error, socket_id, %{"error" => error})
+    end
+
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end
