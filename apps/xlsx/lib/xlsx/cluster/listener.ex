@@ -2,7 +2,7 @@ defmodule Xlsx.Cluster.Listener do
   use GenServer
   require Logger
 
-  alias Xlsx.Mnesia.Node, as: MNode
+  # alias Xlsx.Mnesia.Node, as: MNode
 
   # API
   def start_link(state) do
@@ -25,7 +25,7 @@ defmodule Xlsx.Cluster.Listener do
   end
 
   @impl true
-  def handle_call({:generate_report, request}, from, state) do
+  def handle_call({:generate_report, request}, _from, state) do
     {:ok, pid} = case {request["data"]["project"], request["data"]["report_key"]} do
       {"srs", "egresses"} -> Xlsx.SrsWeb.Egress.Report.start(Map.put(request, "listener", self()))
       {"srs", "suive"} -> Xlsx.SrsWeb.Suive.Report.start(Map.put(request, "listener", self()))
@@ -64,7 +64,7 @@ defmodule Xlsx.Cluster.Listener do
     {:noreply, Map.put(state, "reports", Map.delete(state["reports"], pid))}
   end
 
-  def handle_info({:nodeup, node}, state) do
+  def handle_info({:nodeup, _node}, state) do
     # XLogger.save_event(Node.self(), __MODULE__, :nodeup, %{"node" => node})
     # response = GenServer.call({Listener, node}, :configure)
     # MNode.save_node(node, response["size"], 0, DateTime.now!("America/Mexico_City") |> DateTime.to_unix())
@@ -79,7 +79,7 @@ defmodule Xlsx.Cluster.Listener do
         {:noreply, state}
     end
   end
-  def handle_info(:timeout, %{"connected" => :true, "master" => master}=state) do
+  def handle_info(:timeout, %{"connected" => :true, "master" => _master}=state) do
     {:noreply, state}
   end
   def handle_info(:timeout, %{"connected" => :false, "master" => master}=state) do

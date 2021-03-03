@@ -31,16 +31,16 @@ defmodule Xlsx.Decode.Query do
     {:ok, id} = BSON.ObjectId.encode(map["_id"])
     id
   end
-  defp priv_decode({map, _acc}, "$gte", value) when is_bitstring(value) do
+  defp priv_decode({_map, _acc}, "$gte", value) when is_bitstring(value) do
     to_date(value)
   end
-  defp priv_decode({map, _acc}, "$lte", value) when is_bitstring(value) do
+  defp priv_decode({_map, _acc}, "$lte", value) when is_bitstring(value) do
     to_date(value)
   end
-  defp priv_decode({map, _acc}, "$gt", value) when is_bitstring(value) do
+  defp priv_decode({_map, _acc}, "$gt", value) when is_bitstring(value) do
     to_date(value)
   end
-  defp priv_decode({map, _acc}, "$lt", value) when is_bitstring(value) do
+  defp priv_decode({_map, _acc}, "$lt", value) when is_bitstring(value) do
     to_date(value)
   end
   defp priv_decode({_map, _acc}, _key, value) when is_map(value) do

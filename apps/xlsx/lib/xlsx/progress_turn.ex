@@ -3,7 +3,7 @@ defmodule Xlsx.SrsWeb.ProgressTurn do
   require Logger
 
   alias Xlsx.Mnesia.Socket, as: MSocket
-  alias Xlsx.Decode.Query, as: DQuery
+  # alias Xlsx.Decode.Query, as: DQuery
 
   # API
   def start_link(state) do
