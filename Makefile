@@ -4,13 +4,14 @@ npm:
 	npm install
 compile:
 	# @rm -rf _build
+	rm -rf Mnesia*
 	rm -rf _build/dev/lib/xlsx/priv/
 	mix compile
 	mkdir -p _build/dev/lib/xlsx/priv/
 	cp -R apps/xlsx/lib/xlsx/priv/* _build/dev/lib/xlsx/priv/
 
 run:
-	iex --name reportex@127.0.0.1 --cookie "elixir" -S mix
+	iex --name master@127.0.0.1 -S mix
 
 release:
 	rm -rf _build
@@ -31,4 +32,4 @@ stop:
 	_build/prod/rel/reportex/bin/reportex stop
 
 tail:
-	tail -f _build/prod/rel/reportex/tmp/log/erlang.log.1
+	tail -f -n 500 `find _build/prod/rel/reportex/tmp/log/erlang.log.* -type f -printf '%T+ %p\n' | sort -r | head -1  | tr -s ' ' | cut -d ' ' -f 2 `
