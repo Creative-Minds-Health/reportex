@@ -32,7 +32,8 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress, "params" => params}=state) do
     send(progress, {:update_status, :writing})
     python_path = :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level") |> String.to_charlist()
-    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python2'}])
+    # {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python2'}])
+    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python3.7'}])
     file_name = DateLib.file_name_date("-") <> ".xlsx"
     file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
     json = Poison.encode!(%{
@@ -45,7 +46,8 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
       }
     })
     response = :python.call(pid, :rep, :initrep, [json])
-    case Map.get(response, "success", :false) do
+    # case Map.get(response, "success", :false) do
+    case Map.get(response, 'success', :false) do
       :true -> send(progress, {:done, file_path, file_name})
       _-> Logger.error ["paso mal"]
     end
