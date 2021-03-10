@@ -3,8 +3,6 @@ defmodule Xlsx.Socket do
   require Logger
 
   alias Xlsx.Mnesia.Socket, as: MSocket
-  alias Xlsx.SrsWeb.ProgressTurn, as: ProgressTurn
-  alias Xlsx.Mnesia.Worker, as: MWorker
   alias Xlsx.Mnesia.Node, as: MNode
 
   # API

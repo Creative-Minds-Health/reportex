@@ -2,7 +2,6 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
   use GenServer
   require Logger
 
-  alias Xlsx.Date.Date, as: DateLib
   alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API

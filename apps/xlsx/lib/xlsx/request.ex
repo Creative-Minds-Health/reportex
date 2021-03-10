@@ -54,7 +54,7 @@ defmodule Xlsx.Request do
 
     {:noreply, Map.put(state, "data", data["data"]) |> Map.put("res_socket", data["socket"]) |> Map.put("node", data["node"]) |> Map.put("report", pid)}
   end
-  def handle_info({:tcp_closed, _reason}, %{"res_socket" => res_socket, "node" => node, "report" => report}=state) do
+  def handle_info({:tcp_closed, _reason}, %{"res_socket" => _res_socket, "node" => node, "report" => report}=state) do
     GenServer.cast({Listener, node}, {:kill, report})
     {:noreply, state}
   end
@@ -79,7 +79,7 @@ defmodule Xlsx.Request do
     {:noreply, new_state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state) do
     {:noreply, state}
   end
 

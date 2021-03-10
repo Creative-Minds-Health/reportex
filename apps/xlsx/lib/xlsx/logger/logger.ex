@@ -18,7 +18,7 @@ defmodule Xlsx.Logger.Logger do
   end
 
   @impl true
-  def handle_call({:send_progress, res_socket, response}, from, state) do
+  def handle_call({:send_progress, res_socket, response}, _from, state) do
     :ok = :gen_tcp.send(res_socket, response)
     {:reply, :ok, state}
   end
@@ -74,7 +74,7 @@ defmodule Xlsx.Logger.Logger do
 
   defp show_all([]) do
   end
-  defp show_all([{_table, node, module, event, socket_id, data, date}|t]) do
+  defp show_all([{_table, node, module, event, socket_id, data, _date}|t]) do
     info = case event do
       :report_start -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]
       :run_all -> ["#{inspect node} - #{inspect module} - #{inspect event} - #{inspect socket_id}"]

@@ -21,8 +21,7 @@ defmodule Xlsx.Cluster.Master do
   end
 
   @impl true
-  def handle_call(:register, from, state) do
-    Logger.info "Register"
+  def handle_call(:register, _from, state) do
     {:reply, :ok, state}
   end
   def handle_call(_request, _from, state) do

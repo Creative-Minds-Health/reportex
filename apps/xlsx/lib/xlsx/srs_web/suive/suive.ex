@@ -27,7 +27,7 @@ defmodule Xlsx.SrsWeb.Suive.Suive do
     %{"group2" => diagnosis}
   end
 
-  def search_diagnosis(groups, diagnosis_template, []) do
+  def search_diagnosis(_groups, diagnosis_template, []) do
     diagnosis_template
   end
   def search_diagnosis(groups, diagnosis_template, [h|t]) do
@@ -35,7 +35,7 @@ defmodule Xlsx.SrsWeb.Suive.Suive do
     search_diagnosis(groups, Map.put(diagnosis_template, h, new_group_template), t)
   end
 
-  def iterate_group_template([], groups) do
+  def iterate_group_template([], _groups) do
     []
   end
   def iterate_group_template([h|t], groups) do
@@ -55,7 +55,7 @@ defmodule Xlsx.SrsWeb.Suive.Suive do
     diagnosis
   end
   def iterate_diagnosis_results(diagnosis, [h|t]) do
-    new_group_ages = case search_diagnosis(h["diagnosis"], diagnosis["key"], diagnosis["specific"]) do
+    new_group_ages = case search_diagnosis_key(h["diagnosis"], diagnosis["key"], diagnosis["specific"]) do
       true ->
         update_group_ages(h["genders"], diagnosis["groupAges"])
       _-> diagnosis["groupAges"]
@@ -64,7 +64,7 @@ defmodule Xlsx.SrsWeb.Suive.Suive do
     iterate_diagnosis_results(Map.put(diagnosis, "groupAges", new_group_ages), t)
   end
 
-  def search_diagnosis(key, key_list, specific) do
+  def search_diagnosis_key(key, key_list, specific) do
     compare_key = case specific do
       false ->
         [new_key | _] = String.split(key, ".")

@@ -1,7 +1,7 @@
 defmodule Xlsx.SrsWeb.Suive.Concat do
   require Logger
 
-  def concat_data(data, diagnosis_template, []) do
+  def concat_data(_data, diagnosis_template, []) do
     diagnosis_template
   end
 

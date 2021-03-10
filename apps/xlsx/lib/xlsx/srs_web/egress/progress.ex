@@ -3,7 +3,6 @@ defmodule Xlsx.SrsWeb.Egress.Progress do
   require Logger
 
   alias Xlsx.Date.Date, as: DateLib
-  alias Xlsx.Cluster.Listener, as: Listener
   alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API
@@ -108,7 +107,7 @@ defmodule Xlsx.SrsWeb.Egress.Progress do
 
   defp number_to_string(number) do
     number
-      |> Integer.to_char_list
+      |> Integer.to_charlist
       |> Enum.reverse
       |> Enum.chunk_every(3)
       |> Enum.join(",")
