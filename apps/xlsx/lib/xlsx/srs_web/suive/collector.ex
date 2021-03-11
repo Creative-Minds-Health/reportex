@@ -70,7 +70,11 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   end
 
   @impl true
-  def terminate(_reason, _state) do
+  def terminate(:normal, _state) do
+    :ok
+  end
+  def terminate(_reason, %{"parent" => parent}=state) do
+    send(parent, :kill)
     :ok
   end
 
