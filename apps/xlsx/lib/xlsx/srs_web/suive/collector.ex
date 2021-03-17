@@ -4,6 +4,7 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
 
   alias Xlsx.SrsWeb.Suive.Concat, as: Concat
   alias Xlsx.Date.Date, as: DateLib
+  alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API
   def start(state) do
@@ -29,8 +30,9 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress, "params" => params}=state) do
+  def handle_cast(:generate, %{"diagnosis_template" => diagnosis_template, "progress" => progress, "params" => params, "socket_id" => socket_id}=state) do
     send(progress, {:update_status, :writing})
+    LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     python_path = :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level") |> String.to_charlist()
     # {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python2'}])
     # {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python3.7'}])
