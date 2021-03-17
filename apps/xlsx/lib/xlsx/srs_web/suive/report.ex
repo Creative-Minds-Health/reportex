@@ -141,6 +141,10 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     {:noreply, state}
   end
 
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"status" => status}=state) when status === :done do
+    send(self(), :kill)
+    {:noreply, state}
+  end
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     {:atomic, :ok} = MWorker.delete(pid)
     case MWorker.empty_workers(self()) do
