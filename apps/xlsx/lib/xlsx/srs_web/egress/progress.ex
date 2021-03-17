@@ -49,6 +49,7 @@ defmodule Xlsx.SrsWeb.Egress.Progress do
         :gen_tcp.send(res_socket, json_response)
         LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
         :ok = LibLogger.send_progress(res_socket, json_response)
+        :ok = GenServer.call(parent, {:update_status, :done})
       {:error, error} ->
         {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id) |> Map.put("status", "error") |> Map.put("error", error))
         Logger.info ["error: #{inspect json_response}"]

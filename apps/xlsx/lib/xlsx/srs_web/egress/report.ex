@@ -19,13 +19,16 @@ defmodule Xlsx.SrsWeb.Egress.Report do
   def init(state) do
     Process.flag(:trap_exit, true)
     GenServer.cast(self(), :start)
-    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0)}
+    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0) |> Map.put("status", :doing)}
   end
 
   @impl true
   def handle_call(:waiting_status, {from, _}, state) do
     :ok = MWorker.update_status(from, {:occupied, :waiting})
     {:reply, :ok, state}
+  end
+  def handle_call({:update_status, status}, _from, state) do
+    {:reply, :ok, Map.put(state, "status", status)}
   end
 
   def handle_call(_request, _from, state) do
@@ -120,7 +123,12 @@ defmodule Xlsx.SrsWeb.Egress.Report do
     {:noreply, new_state}
   end
 
-  def handle_info(:kill, state) do
+  def handle_info(:kill, %{"status" => status, "res_socket" => res_socket, "data" => data}=state) do
+    case status do
+      :doing ->
+        :ok = LibLogger.send_progress(res_socket, Poison.encode!(Map.put(%{}, "socket_id", data["socket_id"]) |> Map.put("status", "error")))
+      _-> []
+    end
     kill_processes(["collector", "progress"], state)
     for {_XlsxWorker, pid, _status, _date, _report} <- MWorker.get_workers(self()),
       GenServer.cast(pid, :stop),
@@ -130,6 +138,10 @@ defmodule Xlsx.SrsWeb.Egress.Report do
     {:noreply, state}
   end
 
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"status" => status}=state) when status === :done do
+    send(self(), :kill)
+    {:noreply, state}
+  end
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     {:atomic, :ok} = MWorker.delete(pid)
     case MWorker.empty_workers(self()) do
