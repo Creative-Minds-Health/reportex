@@ -33,7 +33,7 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
 
 
   @impl true
-  def handle_info({:done , file_path, file_name}, %{"res_socket" => res_socket, "socket_id" => socket_id}=state) do
+  def handle_info({:done , file_path, file_name}, %{"res_socket" => res_socket, "socket_id" => socket_id, "parent" => parent}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
     new_map =
       Map.put(map, "file", :filename.join(file_path, file_name))
@@ -46,7 +46,8 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
         LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
         :ok = LibLogger.send_progress(res_socket, json_response)
         :ok = File.rm(:filename.join(file_path, file_name))
-        :ok = GenServer.call({:update_status, :done}, self())
+        # :ok = GenServer.call({:update_status, :done}, parent, 10_000)
+        :ok = GenServer.call(parent, {:update_status, :done})
       {:error, error} ->
         {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id) |> Map.put("status", "error") |> Map.put("error", error))
         Logger.info ["error: #{inspect json_response}"]
@@ -54,7 +55,7 @@ defmodule Xlsx.SrsWeb.Suive.Progress do
         :ok = LibLogger.send_progress(res_socket, json_response)
     end
     # send(parent, :kill)
-    GenServer.cast(:stop, self())
+    GenServer.cast(self(), :stop)
     {:noreply, Map.put(state, "status", :done)}
   end
   def handle_info({:update_status, status}, %{:progress_timeout => progress_timeout}=state) do

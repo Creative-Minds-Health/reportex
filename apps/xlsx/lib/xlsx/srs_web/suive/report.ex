@@ -27,7 +27,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     :ok = MWorker.update_status(from, {:occupied, :waiting})
     {:reply, :ok, state}
   end
-  def handle_call({:update_status, status}, {from, _}, state) do
+  def handle_call({:update_status, status}, _from, state) do
     {:reply, :ok, Map.put(state, "status", status)}
   end
 

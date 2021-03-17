@@ -33,7 +33,8 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
     send(progress, {:update_status, :writing})
     python_path = :filename.join(:code.priv_dir(:xlsx), "lib/python/srs_web/consult/first_level") |> String.to_charlist()
     # {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python2'}])
-    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python3.7'}])
+    # {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python3.7'}])
+    {:ok, pid} = :python.start([{:python_path, python_path}, {:python, 'python'}])
     file_name = DateLib.file_name_date("-") <> ".xlsx"
     file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
     json = Poison.encode!(%{
@@ -47,7 +48,7 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
     })
     response = :python.call(pid, :rep, :initrep, [json])
     # case Map.get(response, "success", :false) do
-    case Map.get(response, 'success', :false) do
+    case success_response(response) do
       :true -> send(progress, {:done, file_path, file_name})
       _-> Logger.error ["paso mal"]
     end
@@ -73,7 +74,7 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
   def terminate(:normal, _state) do
     :ok
   end
-  def terminate(_reason, %{"parent" => parent}=state) do
+  def terminate(_reason, %{"parent" => parent}=_state) do
     send(parent, :kill)
     :ok
   end
@@ -131,4 +132,23 @@ defmodule Xlsx.SrsWeb.Suive.Collector do
     [month, day, year] = String.split(date, "/")
     %{"day" => day, "month" => month, "year" => year}
   end
+
+  def success_response(response) do
+    success_response(response, ["success", 'success'])
+  end
+
+  def success_response(_response, []) do
+    :nil
+  end
+  def success_response(response, [h|t]) do
+    success_response(response, t, Map.get(response, h, :nil))
+  end
+
+  def success_response(response, fields, :nil) do
+    success_response(response, fields)
+  end
+  def success_response(_response, _fields, value) do
+    value
+  end
+
 end
