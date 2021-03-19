@@ -34,20 +34,20 @@ defmodule Xlsx.SrsWeb.Egress.Progress do
 
 
   @impl true
-  def handle_info({:done , file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
+  def handle_info({:done , file_name, file_path}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
     date = DateTime.now!("America/Mexico_City")
     time = DateLib.string_time(date, "-")
     new_map =
-      Map.put(map, "file", :filename.join(File.cwd!(), file_name))
+      Map.put(map, "file", :filename.join(file_path, file_name))
       |> Map.put("destination", Map.get(map, "destination") <> "/egresos/" <> file_name <> "_" <> time  <> ".xlsx")
       |> Map.put("expires", Map.get(map, "expires", 1))
-
     case NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000) do
       {:ok, response} ->
         {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
         LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
         :ok = LibLogger.send_progress(res_socket, json_response)
+        :ok = File.rm(:filename.join(file_path, file_name))
         :ok = GenServer.call(parent, {:update_status, :done})
       {:error, error} ->
         {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id) |> Map.put("status", "error") |> Map.put("error", error))

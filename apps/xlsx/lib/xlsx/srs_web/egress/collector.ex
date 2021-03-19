@@ -78,11 +78,11 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
     |> Sheet.set_cell("E6", "Código CIE-9 de procedimiento:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
     |> Sheet.set_cell("F6", Map.get(query, "procedures.diagnosis.key_diagnosis", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
 
-    file_name = DateLib.get_date_now(:undefined, "-")
-    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(file_name)
-
+    file_name =  DateLib.get_date_now(:undefined, "-")
+    file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
+    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(:filename.join(file_path, file_name))
     LibLogger.save_event(__MODULE__, :done_xlsx, socket_id, %{})
-    send(progress, {:done, file_name})
+    send(progress, {:done, file_name, file_path})
     # GenServer.cast(self(), :stop)
     {:noreply, Map.put(state, "rows", rows)}
   end
