@@ -100,8 +100,11 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
   end
 
   @impl true
-  def terminate(_reason, _state) do
-    # Logger.warning ["#{inspect self()}... terminate collector"]
+  def terminate(:normal, _state) do
+    :ok
+  end
+  def terminate(_reason, %{"parent" => parent}=_state) do
+    send(parent, :kill)
     :ok
   end
 

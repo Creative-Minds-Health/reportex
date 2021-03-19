@@ -46,7 +46,6 @@ defmodule Xlsx.SrsWeb.Egress.Progress do
     case NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000) do
       {:ok, response} ->
         {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
-        :gen_tcp.send(res_socket, json_response)
         LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
         :ok = LibLogger.send_progress(res_socket, json_response)
         :ok = GenServer.call(parent, {:update_status, :done})
@@ -56,8 +55,8 @@ defmodule Xlsx.SrsWeb.Egress.Progress do
         LibLogger.save_event(__MODULE__, :error, socket_id, %{"error" => error})
         :ok = LibLogger.send_progress(res_socket, json_response)
     end
-
-    send(parent, :kill)
+    #send(parent, :kill)
+    GenServer.cast(self(), :stop)
     {:noreply, Map.put(state, "status", :done)}
   end
   def handle_info({:update_status, status}, %{:progress_timeout => progress_timeout}=state) do
@@ -88,8 +87,11 @@ defmodule Xlsx.SrsWeb.Egress.Progress do
   end
 
   @impl true
-  def terminate(_reason, _state) do
-    # Logger.warning ["#{inspect self()}... terminate progress"]
+  def terminate(:normal, _state) do
+    :ok
+  end
+  def terminate(_reason, %{"parent" => parent}=_state) do
+    send(parent, :kill)
     :ok
   end
 
