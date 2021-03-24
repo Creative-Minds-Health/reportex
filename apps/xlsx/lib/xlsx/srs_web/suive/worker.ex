@@ -31,7 +31,7 @@ defmodule Xlsx.SrsWeb.Suive.Worker do
   end
 
   @impl true
-  def handle_info(:run, %{"query" => query, "parent" => parent, "collection" => collection, "diagnosis_template" => diagnosis_template, "collector" => collector}=state) do
+  def handle_info({:run, query}, %{"parent" => parent, "collection" => collection, "diagnosis_template" => diagnosis_template, "collector" => collector}=state) do
     cursor = Mongo.aggregate(:mongo, collection, query, [timeout: 60_000]) |> Enum.to_list()
     groups = cursor
       |> Stream.map(&(
