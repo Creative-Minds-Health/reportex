@@ -10,6 +10,9 @@ defmodule Xlsx.Decode.Query do
   def decode([map|t]) when is_integer(map)  do
     [map | decode(t)]
   end
+  def decode([map|t]) when is_bitstring(map)  do
+    [map | decode(t)]
+  end
   def decode([map|t]) do
     [priv_decode({map, %{}}, Map.keys(map)) | decode(t)]
   end
