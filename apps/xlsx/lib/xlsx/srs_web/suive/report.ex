@@ -74,12 +74,12 @@ defmodule Xlsx.SrsWeb.Suive.Report do
       _ -> "attentions_n2"
     end
     for index <- 1..n_workers,
-      {:ok, pid} = Worker.start(%{"index" => index, "parent" => self(), "query" => Suive.make_query(data["query"], Enum.at(dates, index - 1)), "collector" => collector, "collection" => collection, "diagnosis_template" => diagnosis_template}),
+      {:ok, pid} = Worker.start(%{"index" => index, "parent" => self(), "query" => "", "collector" => collector, "collection" => collection, "diagnosis_template" => diagnosis_template}),
       Process.monitor(pid),
       :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
-    new_state = Map.put(state, "documents", 1) |> Map.put("collector", collector) |> Map.put("total", length(dates))
+    new_state = Map.put(state, "documents", 1) |> Map.put("collector", collector) |> Map.put("total", length(dates)) |> Map.put("dates", dates)
     LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
     send(self(), {:run, page * 1})
     {:noreply, new_state}
@@ -101,10 +101,10 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     {:noreply, state}
   end
 
-  def handle_info({:run, limit}, %{"total" => total, "documents" => documents, "page" => page}=state) when limit <= total do
+  def handle_info({:run, limit}, %{"dates" => dates, "data" => data, "total" => total, "documents" => documents, "page" => page}=state) when limit <= total do
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
-        send(pid, :run)
+        send(pid, {:run, Suive.make_query(data["query"], Enum.at(dates, limit - 1))})
         send(self(), {:run, (page + 1) * documents})
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
@@ -113,10 +113,10 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     end
     {:noreply, new_state}
   end
-  def handle_info({:run, limit}, %{"page" => page, "total" => total, "documents" => _documents}=state)  when limit > total do
+  def handle_info({:run, limit}, %{"dates" => dates, "data" => data, "page" => page, "total" => total, "documents" => _documents}=state)  when limit > total do
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
-        send(pid, :run)
+        send(pid, {:run, Suive.make_query(data["query"], Enum.at(dates, limit - 1))})
         send(self(), {:run, total})
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
@@ -141,7 +141,7 @@ defmodule Xlsx.SrsWeb.Suive.Report do
     {:noreply, state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"status" => status}=state) when status === :done do
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, %{"status" => status}=state) when status === :done do
     send(self(), :kill)
     {:noreply, state}
   end
