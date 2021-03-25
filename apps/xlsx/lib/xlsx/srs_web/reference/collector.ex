@@ -37,7 +37,7 @@ defmodule Xlsx.SrsWeb.Reference.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "query" => query, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
+  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
     LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
     widths = for index <- 1..110, into: %{}, do:  {index, 30}
@@ -78,10 +78,11 @@ defmodule Xlsx.SrsWeb.Reference.Collector do
 
 
     file_name = DateLib.get_date_now(:undefined, "-")
-    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(file_name)
+    file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
+    Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(:filename.join(file_path, file_name))
 
     LibLogger.save_event(__MODULE__, :done_xlsx, socket_id, %{})
-    send(progress, {:done, file_name})
+    send(progress, {:done, file_name, file_path})
     # GenServer.cast(self(), :stop)
     {:noreply, Map.put(state, "rows", rows)}
   end
@@ -104,10 +105,10 @@ defmodule Xlsx.SrsWeb.Reference.Collector do
     :ok
   end
 
-  def get_patient_fullname(query) do
-    case Map.get(query, "$or", []) do
-      [] -> "Sin filtro"
-      [%{"patient.fullname" => %{"$options" => _, "$regex" => fullname}}|_] -> fullname
-    end
-  end
+  # def get_patient_fullname(query) do
+  #   case Map.get(query, "$or", []) do
+  #     [] -> "Sin filtro"
+  #     [%{"patient.fullname" => %{"$options" => _, "$regex" => fullname}}|_] -> fullname
+  #   end
+  # end
 end

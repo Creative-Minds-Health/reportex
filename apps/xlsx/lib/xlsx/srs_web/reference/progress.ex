@@ -34,25 +34,24 @@ defmodule Xlsx.SrsWeb.Reference.Progress do
 
 
   @impl true
-  def handle_info({:done , file_name}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
+  def handle_info({:done , file_name, file_path}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
     date = DateTime.now!("America/Mexico_City")
     time = DateLib.string_time(date, "-")
     new_map =
-      Map.put(map, "file", :filename.join(File.cwd!(), file_name))
-      |> Map.put("destination", Map.get(map, "destination") <> "/egresos/" <> file_name <> "_" <> time  <> ".xlsx")
+      Map.put(map, "file", :filename.join(file_path, file_name))
+      |> Map.put("destination", Map.get(map, "destination") <> "/referencias_contrarreferencias/" <> file_name <> "_" <> time  <> ".xlsx")
       |> Map.put("expires", Map.get(map, "expires", 1))
 
     case NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000) do
       {:ok, response} ->
         {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
-        :gen_tcp.send(res_socket, json_response)
         LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
         :ok = LibLogger.send_progress(res_socket, json_response)
+        :ok = File.rm(:filename.join(file_path, file_name))
         :ok = GenServer.call(parent, {:update_status, :done})
       {:error, error} ->
         {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id) |> Map.put("status", "error") |> Map.put("error", error))
-        Logger.info ["error: #{inspect json_response}"]
         LibLogger.save_event(__MODULE__, :error, socket_id, %{"error" => error})
         :ok = LibLogger.send_progress(res_socket, json_response)
     end
@@ -61,9 +60,13 @@ defmodule Xlsx.SrsWeb.Reference.Progress do
     {:noreply, Map.put(state, "status", :done)}
   end
   def handle_info({:update_status, status}, %{:progress_timeout => progress_timeout}=state) do
+    Logger.info ["update_status "]
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
-  def handle_info({:documents, new_documents}, %{"documents" => documents}=state) do
+  # def handle_info({:documents, new_documents}, %{"documents" => documents, "total" => total}=state) when documents >= total do
+  #   {:noreply, state, 500}
+  # end
+  def handle_info({:documents, new_documents}, %{"documents" => documents, "total" => total}=state) when documents < total do
     {:noreply, Map.put(state, "documents", new_documents + documents), 500}
   end
   def handle_info({:update_total, total}, %{:progress_timeout => progress_timeout}=state) do
@@ -79,11 +82,10 @@ defmodule Xlsx.SrsWeb.Reference.Progress do
     {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, response} = Poison.encode(Map.put(map, "total", total) |> Map.put("status", "doing") |> Map.put("socket_id", socket_id) |> Map.put("date_last_update", format_date(date)))
     LibLogger.send_progress(res_socket, response)
-    #:gen_tcp.send(res_socket, response)
     {:noreply, state, progress_timeout}
   end
-  def handle_info(_msg, state) do
-    Logger.info "Progress UNKNOWN INFO MESSAGE"
+  def handle_info(msg, state) do
+    Logger.info "Progress UNKNOWN INFO MESSAGE, #{inspect msg}"
     {:noreply, state}
   end
 

@@ -37,14 +37,16 @@ defmodule Xlsx.SrsWeb.Reference.Report do
 
   @impl true
   def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
-    Logger.info ["data #{inspect data}"]
     {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
     Process.monitor(progress)
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
-    new_state = Map.put(state, "record", record) |> Map.put("progress", progress)
+
+
+    new_state = Map.put(state, "record", record) |> Map.put("progress", progress) |> Map.put("count_data", data["count"])
     LibLogger.save_event(__MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
 
-    send(self(), {:iterate, data["levels"]})
+    send(self(), {:get_total, data["levels"]})
+    # send(self(), {:iterate, data["levels"]})
     # send(self(), {:count, Mongodb.count_query(data, "attentions")})
     {:noreply, new_state}
   end
@@ -59,61 +61,74 @@ defmodule Xlsx.SrsWeb.Reference.Report do
 
   @impl true
 
-  def handle_info({:iterate, []}, state) do
-    {:noreply, state}
-  end
-  def handle_info({:iterate, [h|t]}, state) do
-    Logger.info ["iterate #{inspect h}"]
-    send(self(), {:count, Mongodb.count_query(h, h["collection"]), h})
-    {:noreply, Map.put(state, "levels", t)}
+  def handle_info({:get_total, levels}, %{"count_data" => count_data, "progress" => progress, "record" => record, "data" => data}=state) do
+    total = Mongodb.count_query_aggregate(count_data, count_data["collection"])
+    send(progress, {:update_total, total})
+
+    {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "progress" => progress, "socket_id" => data["socket_id"], "total" => total})
+    Process.monitor(collector)
+
+    send(self(), {:iterate, levels})
+    {:noreply,  Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
   end
 
-  def handle_info({:count, 0, _level}, %{"progress" => progress, "socket_id" => socket_id, "res_socket" => res_socket}=state) do
-    Logger.warning "count 0"
-    {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", socket_id))
+
+  def handle_info({:iterate, []}, %{"collector" => collector}=state) do
+    case MWorker.empty_workers(self()) do
+      :true ->
+        GenServer.cast(collector, :generate)
+      _ -> []
+    end
+    {:noreply, state}
+  end
+  def handle_info({:iterate, [h|t]}, %{"count_data" => count_data}=state) do
+    # Logger.info ["iterateeeeeeeeeeeeeeeeee"]
+    [%{"$match" => match} | complement] = count_data["query"]
+    send(self(), {:count, h})
+    {:noreply, Map.put(state, "levels", t) |> Map.put("page", 1) |> Map.put("skip", 0) |> Map.put("total_level", Mongodb.count_query_aggregate(Map.put(count_data, "query", [%{"$match" => Map.put(match, "from.level", h["level"])} | complement]), count_data["collection"]))}
+  end
+
+  def handle_info({:count, _level}, %{"data" => data, "progress" => progress, "res_socket" => res_socket, "total" => total}=state) when total === 0 do
+    {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", data["socket_id"]))
     :gen_tcp.send(res_socket, response)
     GenServer.cast(progress, :stop)
     GenServer.cast(self(), :stop)
     {:noreply, state}
   end
-  def handle_info({:count, total, level}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
-    send(progress, {:update_total, total})
-    [%{"$match" => query} | _] = level["query"];
+  def handle_info({:count, level}, %{"record" => record, "data" => data, "page" => page, "collector" => collector, "total" => total, "total_level" => total_level}=state) when total > 0 do
     {:ok, date} = DateTime.now("America/Mexico_City")
-    {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
-    Process.monitor(collector)
-    Logger.info ["total #{inspect total}"]
-    for _index <- 1..get_n_workers(total, round(total / record["config"]["documents"]), record["config"]["workers"]),
+    # Logger.info ["total_leveltotal_leveltotal_leveltotal_level #{inspect total_level}"]
+
+    for _index <- 1..get_n_workers(total_level, round(total_level / record["config"]["documents"]), record["config"]["workers"]),
       {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => level["query"], "collector" => collector, "collection" => level["collection"]}),
       Process.monitor(pid),
       :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
-    new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
-    LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
-    send(self(), {:run, page * record["config"]["documents"]})
-    {:noreply, new_state}
-  end
+    LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), state)
 
-  def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip, "levels" => levels}=state) when skip >= total do
-    GenServer.cast(from, :stop)
-    send(self(), {:iterate, levels})
+    send(self(), {:run, page * record["config"]["documents"]})
     {:noreply, state}
   end
-  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip}=state) do
+
+  def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip, "total_level" => total_level}=state) when skip >= total_level do
+    GenServer.cast(from, :stop)
+    {:noreply, state}
+  end
+  def handle_info({:run_by_worker, _from}, %{"page" => page, "documents" => documents, "total" => total, "skip" => skip, "total_level" => total_level}=state) do
     msg = Integer.to_string(skip) <> "-" <> Integer.to_string(total)
     {:ok, _response} = Poison.encode(%{"progreso..." => msg})
     send(self(), {:run, page * documents})
     {:noreply, state}
   end
 
-  def handle_info({:run, _limit}, %{"total" => total, "skip" => skip, "data" => data}=state) when skip >= total do
+  def handle_info({:run, _limit}, %{"total" => total, "skip" => skip, "data" => data, "total_level" => total_level}=state) when skip >= total_level do
     LibLogger.save_event(__MODULE__, :run_all, Map.get(data, "socket_id", :nill), state)
     {:noreply, state}
   end
 
-  def handle_info({:run, limit}, %{"total" => total, "skip" => skip, "documents" => documents, "page" => page}=state) when limit <= total do
-    Logger.info ["limit <= total"]
+  def handle_info({:run, limit}, %{"total" => total, "skip" => skip, "documents" => documents, "page" => page, "total_level" => total_level}=state) when limit <= total_level do
+    # Logger.info ["limit <= total"]
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
         send(pid, {:run, skip, limit, documents})
@@ -125,12 +140,12 @@ defmodule Xlsx.SrsWeb.Reference.Report do
     end
     {:noreply, new_state}
   end
-  def handle_info({:run, limit}, %{"page" => page, "total" => total, "skip" => skip, "documents" => _documents}=state)  when limit > total do
-    Logger.info ["limit > total"]
+  def handle_info({:run, limit}, %{"page" => page, "total" => total, "skip" => skip, "total_level" => total_level}=state)  when limit > total_level do
+    # Logger.info ["limit > total"]
     new_state = case MWorker.next_worker() do
       {:ok, pid} ->
-        send(pid, {:run, skip, total, (total - skip)})
-        send(self(), {:run, total})
+        send(pid, {:run, skip, total_level, (total_level - skip)})
+        send(self(), {:run, total_level})
         :ok = MWorker.update_status(pid, {:waiting, :occupied})
         Map.put(state, "skip", limit) |> Map.put("page", page + 1)
       _ ->
@@ -154,15 +169,15 @@ defmodule Xlsx.SrsWeb.Reference.Report do
     {:noreply, state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"status" => status}=state) when status === :done do
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, %{"status" => status}=state) when status === :done do
     send(self(), :kill)
     {:noreply, state}
   end
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"levels" => levels}=state) do
     {:atomic, :ok} = MWorker.delete(pid)
     case MWorker.empty_workers(self()) do
       :true ->
-        GenServer.cast(collector, :generate)
+        send(self(), {:iterate, levels})
       _ -> []
     end
     {:noreply, state}

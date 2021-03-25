@@ -23,7 +23,7 @@ defmodule Xlsx.SrsWeb.Reference.Reference do
     case Map.get(item, "consultation_date", :undefined) do
       :undefined -> ""
       date ->
-        sinba_date(date)
+        Calendar.strftime(date, "%Y-%m-%d")
     end
   end
   def get_value(item, [_h|_t], "patient|splited_age|years", _default_value) do
@@ -39,17 +39,17 @@ defmodule Xlsx.SrsWeb.Reference.Reference do
     end
   end
   def get_value(item, [_h|_t], "clue", _default_value) do
-    Map.get(item, "clue", "") <> " " <> Map.get(item, "clue_name", "")
+    Map.get(item, "clue", "") <> " - " <> Map.get(item, "clue_name", "")
   end
   def get_value(item, [_h|_t], "reference_data", _default_value) do
     hospital_key_clues = Map.get(item, "reference_data", %{}) |> Map.get("hospital_key_clues", "")
     hospital_name = Map.get(item, "reference_data", %{}) |> Map.get("hospital_name", "")
-    hospital_key_clues <> " " <> hospital_name
+    hospital_key_clues <> " - " <> hospital_name
   end
   def get_value(item, [_h|_t], "diagnosis", _default_value) do
     diagnosis_key = Map.get(item, "reference_data", %{}) |> Map.get("diagnosis", %{}) |> Map.get("key", "")
     diagnosis_description = Map.get(item, "reference_data", %{}) |> Map.get("diagnosis", %{}) |> Map.get("description", "")
-    diagnosis_key <> " " <> diagnosis_description
+    diagnosis_key <> " - " <> diagnosis_description
   end
 
   def get_value(item, [h|t], field, default_value) do

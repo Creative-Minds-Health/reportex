@@ -29,4 +29,17 @@ defmodule Xlsx.Mongodb.Mongodb do
     {:ok, total} = Mongo.count(:mongo, collection, query)
     total
   end
+
+  def count_query_aggregate(data_decode, collection) do
+    count = Mongo.aggregate(:mongo, collection, data_decode["query"])
+    |> Stream.map(&(
+      &1["total"]
+    ))
+    |> Enum.to_list()
+
+    case count do
+      [] -> 0
+      [total | _] -> total
+    end
+  end
 end
