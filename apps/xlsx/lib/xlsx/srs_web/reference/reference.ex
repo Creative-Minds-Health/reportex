@@ -23,7 +23,7 @@ defmodule Xlsx.SrsWeb.Reference.Reference do
     case Map.get(item, "consultation_date", :undefined) do
       :undefined -> ""
       date ->
-        Calendar.strftime(date, "%Y-%m-%d")
+        Calendar.strftime(DateTime.shift_zone!(date, "America/Mexico_City"), "%Y-%m-%d")
     end
   end
   def get_value(item, [_h|_t], "patient|splited_age|years", _default_value) do
