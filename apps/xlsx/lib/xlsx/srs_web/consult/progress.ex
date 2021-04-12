@@ -40,7 +40,7 @@ defmodule Xlsx.SrsWeb.Consult.Progress do
     time = DateLib.string_time(date, "-")
     new_map =
       Map.put(map, "file", :filename.join(file_path, file_name))
-      |> Map.put("destination", Map.get(map, "destination") <> "/referencias_contrarreferencias/" <> file_name <> "_" <> time  <> ".xlsx")
+      |> Map.put("destination", Map.get(map, "destination") <> "/consultas/" <> file_name <> "_" <> time  <> ".xlsx")
       |> Map.put("expires", Map.get(map, "expires", 1))
 
     case NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000) do

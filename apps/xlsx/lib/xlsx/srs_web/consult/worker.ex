@@ -37,7 +37,7 @@ defmodule Xlsx.SrsWeb.Consult.Worker do
     {:ok, _date} = DateTime.now("America/Mexico_City")
     records = cursor
       |> Stream.map(&(
-        Reference.iterate_fields(&1, rows)
+        Consult.iterate_fields(&1, rows)
       ))
       |> Enum.to_list()
     {:ok, _date2} = DateTime.now("America/Mexico_City")

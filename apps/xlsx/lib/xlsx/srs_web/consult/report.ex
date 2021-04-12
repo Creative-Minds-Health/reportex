@@ -18,8 +18,19 @@ defmodule Xlsx.SrsWeb.Consult.Report do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
+    collection = case Map.get(state, "data", %{}) |> Map.get("params", %{}) |> Map.get("level", "1") do
+      "1" -> "attentions"
+      "2" -> "attentions_n2"
+      "3" -> "attentions_n2"
+    end
     GenServer.cast(self(), :start)
-    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0) |> Map.put("status", :doing)}
+    {:ok, Map.put(state, "collector", %{})
+      |> Map.put("total", 0)
+      |> Map.put("page", 1)
+      |> Map.put("skip", 0)
+      |> Map.put("status", :doing)
+      |> Map.put("collection", collection)
+    }
   end
 
   @impl true
@@ -36,13 +47,13 @@ defmodule Xlsx.SrsWeb.Consult.Report do
   end
 
   @impl true
-  def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
+  def handle_cast(:start, %{"res_socket" => res_socket, "data" => data, "collection" => collection}=state) do
     {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
     Process.monitor(progress)
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
     new_state = Map.put(state, "record", record) |> Map.put("progress", progress)
     LibLogger.save_event(__MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
-    send(self(), {:count, Mongodb.count_query(data, record["collection"])})
+    send(self(), {:count, Mongodb.count_query(data, collection)})
     {:noreply, new_state}
   end
   def handle_cast(:stop, %{"data" => data}=state) do
@@ -64,14 +75,14 @@ defmodule Xlsx.SrsWeb.Consult.Report do
     GenServer.cast(self(), :stop)
     {:noreply, state}
   end
-  def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
+  def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page, "collection" => collection}=state) do
     send(progress, {:update_total, total})
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
     Process.monitor(collector)
     for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
-      {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
+      {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => collection }),
       Process.monitor(pid),
       :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},
