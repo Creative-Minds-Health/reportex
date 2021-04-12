@@ -23,7 +23,7 @@ defmodule Xlsx.SrsWeb.Consult.Consult do
     case Map.get(item, "consultation_date", :undefined) do
       :undefined -> ""
       date ->
-        ""
+        date
         # Calendar.strftime(DateTime.shift_zone!(date, "America/Mexico_City"), "%Y-%m-%d")
     end
   end
