@@ -48,33 +48,12 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
     sheet = %Sheet{
       name: "Resultados",
       rows: [[], [], [], []] ++ [["", ""] ++ columns] ++ new_rows,
-      merge_cells: [],
+      merge_cells: [{"E1", "W2"}],
       col_widths: widths
     }
-
     |> Sheet.set_cell("B5", "No.", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
+    |> Sheet.set_cell("E1", "REGISTRO DIARIO DE PACIENTES EN CONSULTA EXTERNA (12/04/2021 11:20 AM)", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
 
-    # |> Sheet.set_cell("B7", "",  border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    #
-    # |> Sheet.set_cell("C6", "Fecha", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-
-    # |> Sheet.set_cell("D6", "Paciente", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    #
-    # |> Sheet.set_cell("E6", "",  border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    #
-    # |> Sheet.set_cell("F6", "",  border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    #
-    # |> Sheet.set_cell("G6", "",  border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    #
-    # |> Sheet.set_cell("H6", "",  border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-
-    # |> Sheet.set_cell("I6", "Unidad médica que refiere", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    #
-    # |> Sheet.set_cell("J6", "",  border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    #
-    # |> Sheet.set_cell("K6", "Unidad médica referida", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    #
-    # |> Sheet.set_cell("L6", "",  border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
 
 
     file_name = DateLib.get_date_now(:undefined, "-")
