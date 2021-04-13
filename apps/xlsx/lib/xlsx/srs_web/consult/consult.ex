@@ -58,6 +58,37 @@ defmodule Xlsx.SrsWeb.Consult.Consult do
     end
     {:multi, get_diagnosis(new_diagnosis, [], 0)}
   end
+  def get_value(item, [_h|_t], "reference", default_value) do
+    case Map.get(item, "reference_data", %{}) |> Map.get("reference_contrareference", %{}) |> Map.get("key", :undefined) do
+      1 -> "X"
+      _ -> default_value
+    end
+  end
+  def get_value(item, [_h|_t], "contrarreference", default_value) do
+    case Map.get(item, "reference_data", %{}) |> Map.get("reference_contrareference", %{}) |> Map.get("key", :undefined) do
+      2 -> "X"
+      _ -> default_value
+    end
+  end
+
+  def get_value(item, [_h|_t], "reference_clue_name", default_value) do
+    case Map.get(item, "unitLevel", :undefined) do
+      "N2" ->
+        Map.get(item, "reference", %{}) |> Map.get("unit_clue_origin", %{}) |> Map.get("name", default_value)
+      _ ->
+        Map.get(item, "reference_data", %{}) |> Map.get("hospital_name", default_value)
+    end
+  end
+
+  def get_value(item, [_h|_t], "_id", default_value) do
+    Logger.info ["unit #{inspect Map.get(item, "unitLevel", :undefined)}"]
+    case Map.get(item, "unitLevel", :undefined) do
+      "N2" ->
+        "https://michoacan.efimed.care/#/app/consultas/detalle/N2/" <> Map.get(item, "_id", default_value)
+      _ ->
+        "https://michoacan.efimed.care/#/app/consultas/detalle/N1/" <> Map.get(item, "_id", default_value)
+    end
+  end
   def get_value(item, [h|t], field, default_value) do
     case Map.get(item, h, :undefined) do
       :undefined -> default_value
