@@ -2,6 +2,13 @@
 .PHONY: deps
 npm:
 	npm install
+deps:
+	rm -rf deps/
+	mix deps.get
+	cp features/elixlsx/font.ex deps/elixlsx/lib/elixlsx/style/font.ex
+	cp features/elixlsx/xml_templates.ex deps/elixlsx/lib/elixlsx/xml_templates.ex
+	mix deps.compile
+
 compile:
 	# @rm -rf _build
 	rm -rf Mnesia*
@@ -14,6 +21,7 @@ run:
 	iex --name master@127.0.0.1 -S mix
 
 release:
+	make deps
 	rm -rf _build
 	MIX_ENV=prod mix release reportex
 	mkdir -p _build/prod/rel/reportex/lib/xlsx-0.1.0/priv
