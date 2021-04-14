@@ -1,11 +1,11 @@
-defmodule Xlsx.SrsWeb.Consult.Report do
+defmodule Xlsx.Report.ReportCp do
   use GenServer
   require Logger
 
   alias Xlsx.Mongodb.Mongodb, as: Mongodb
-  alias Xlsx.SrsWeb.Consult.Progress, as: Progress
-  alias Xlsx.SrsWeb.Consult.Collector, as: Collector
-  alias Xlsx.SrsWeb.Consult.Worker, as: Worker
+  alias Xlsx.Report.Progress, as: Progress
+  alias Xlsx.Report.Collector, as: Collector
+  alias Xlsx.Report.Worker, as: Worker
   alias Xlsx.Mnesia.Worker, as: MWorker
   alias Xlsx.Logger.LibLogger, as: LibLogger
 
@@ -18,19 +18,8 @@ defmodule Xlsx.SrsWeb.Consult.Report do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    collection = case Map.get(state, "data", %{}) |> Map.get("params", %{}) |> Map.get("level", "1") do
-      "1" -> "attentions"
-      "2" -> "attentions_n2"
-      "3" -> "attentions_n2"
-    end
     GenServer.cast(self(), :start)
-    {:ok, Map.put(state, "collector", %{})
-      |> Map.put("total", 0)
-      |> Map.put("page", 1)
-      |> Map.put("skip", 0)
-      |> Map.put("status", :doing)
-      |> Map.put("collection", collection)
-    }
+    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0)}
   end
 
   @impl true
@@ -38,22 +27,19 @@ defmodule Xlsx.SrsWeb.Consult.Report do
     :ok = MWorker.update_status(from, {:occupied, :waiting})
     {:reply, :ok, state}
   end
-  def handle_call({:update_status, status}, _from, state) do
-    {:reply, :ok, Map.put(state, "status", status)}
-  end
 
   def handle_call(_request, _from, state) do
     {:reply, :ok, state}
   end
 
   @impl true
-  def handle_cast(:start, %{"res_socket" => res_socket, "data" => data, "collection" => collection}=state) do
+  def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
     {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
     Process.monitor(progress)
     [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
     new_state = Map.put(state, "record", record) |> Map.put("progress", progress)
     LibLogger.save_event(__MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
-    send(self(), {:count, Mongodb.count_query(data, collection)})
+    send(self(), {:count, Mongodb.count_query(data, record["collection"])})
     {:noreply, new_state}
   end
   def handle_cast(:stop, %{"data" => data}=state) do
@@ -75,14 +61,14 @@ defmodule Xlsx.SrsWeb.Consult.Report do
     GenServer.cast(self(), :stop)
     {:noreply, state}
   end
-  def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page, "collection" => collection}=state) do
+  def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
     send(progress, {:update_total, total})
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
     Process.monitor(collector)
     for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
-      {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => collection }),
+      {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
       Process.monitor(pid),
       :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},
@@ -134,12 +120,7 @@ defmodule Xlsx.SrsWeb.Consult.Report do
     {:noreply, new_state}
   end
 
-  def handle_info(:kill, %{"status" => status, "res_socket" => res_socket, "data" => data}=state) do
-    case status do
-      :doing ->
-        :ok = LibLogger.send_progress(res_socket, Poison.encode!(Map.put(%{}, "socket_id", data["socket_id"]) |> Map.put("status", "error")))
-      _-> []
-    end
+  def handle_info(:kill, state) do
     kill_processes(["collector", "progress"], state)
     for {_XlsxWorker, pid, _status, _date, _report} <- MWorker.get_workers(self()),
       GenServer.cast(pid, :stop),
@@ -149,10 +130,6 @@ defmodule Xlsx.SrsWeb.Consult.Report do
     {:noreply, state}
   end
 
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"status" => status}=state) when status === :done do
-    send(self(), :kill)
-    {:noreply, state}
-  end
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     {:atomic, :ok} = MWorker.delete(pid)
     case MWorker.empty_workers(self()) do
@@ -189,7 +166,7 @@ defmodule Xlsx.SrsWeb.Consult.Report do
   def name_columns(rows) do
     for item <- rows,
       into: [],
-      do: [item["name"], width: Map.get(item, "width", 30),  bold: true,  wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 9, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]
+      do: [item["name"], bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :thin, color: "#000000"], top: [style: :thin, color: "#000000"], left: [style: :thin, color: "#000000"], right: [style: :thin, color: "#000000"]]]
   end
 
   def rows_with_out_specials(rows) do

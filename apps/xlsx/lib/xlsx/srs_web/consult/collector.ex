@@ -6,6 +6,7 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
   alias Elixlsx.Workbook
   alias Xlsx.Logger.LibLogger, as: LibLogger
   alias Xlsx.Date.Date, as: DateLib
+  alias Xlsx.Report.Report, as: ReportLib
 
   # API
   def start(state) do
@@ -25,7 +26,7 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
     |> Stream.map(&(
       for item <- &1,
         into: [],
-        do: [item, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]
+        do: [item, font: "Arial", size: 10, align_horizontal: :left, wrap_text: true, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]
     ))
     |> Enum.to_list()
     send(progress, {:documents, documents})
@@ -40,10 +41,9 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
   def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
     LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
-    widths = for index <- 1..110, into: %{}, do:  {index, 30}
-
+    widths = ReportLib.col_widths(2, columns)
     new_rows = for {item, i} <- Enum.with_index(rows),
-      do: ["", [i + 1, bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]] ++ item
+      do: ["", [i + 1, bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 11, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]] ++ item
 
     sheet = %Sheet{
       name: "Resultados",
@@ -52,7 +52,7 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
       col_widths: widths
     }
     |> Sheet.set_row_height(5, 40)
-    |> Sheet.set_cell("B5", "No.", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
+    |> Sheet.set_cell("B5", "No.", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 9, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
     |> Sheet.set_cell("E1", "REGISTRO DIARIO DE PACIENTES EN CONSULTA EXTERNA (12/04/2021 11:20 AM)", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
 
 
