@@ -41,17 +41,18 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
   def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
     LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
-    widths = ReportLib.col_widths(2, columns)
+    widths = ReportLib.col_widths(3, columns)
+    Logger.info ["#{inspect widths}"]
     new_rows = for {item, i} <- Enum.with_index(rows),
-      do: ["", [i + 1, bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 11, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]] ++ item
+      do: ["", [i + 1, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 10, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]] ++ item
 
     sheet = %Sheet{
       name: "Resultados",
       rows: [[], [], [], []] ++ [["", ""] ++ columns] ++ new_rows,
       merge_cells: [{"E1", "W2"}],
-      col_widths: widths
+      col_widths: widths,
+      row_heights: %{5 => 70}
     }
-    |> Sheet.set_row_height(5, 40)
     |> Sheet.set_cell("B5", "No.", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 9, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
     |> Sheet.set_cell("E1", "REGISTRO DIARIO DE PACIENTES EN CONSULTA EXTERNA (12/04/2021 11:20 AM)", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
 
