@@ -34,13 +34,12 @@ defmodule Xlsx.SrsWeb.Consult.Progress do
 
 
   @impl true
-  def handle_info({:done , file_name, file_path}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
+  def handle_info({:done , file_name, file_path, date}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
-    date = DateTime.now!("America/Mexico_City")
-    time = DateLib.string_time(date, "-")
+    _time = DateLib.string_time(date, "-")
     new_map =
       Map.put(map, "file", :filename.join(file_path, file_name))
-      |> Map.put("destination", Map.get(map, "destination") <> "/consultas/" <> file_name <> "_" <> time  <> ".xlsx")
+      |> Map.put("destination", Map.get(map, "destination") <> "/consultas/" <> file_name <> ".xlsx")
       |> Map.put("expires", Map.get(map, "expires", 1))
 
     case NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000) do
@@ -60,7 +59,6 @@ defmodule Xlsx.SrsWeb.Consult.Progress do
     {:noreply, Map.put(state, "status", :done)}
   end
   def handle_info({:update_status, status}, %{:progress_timeout => progress_timeout}=state) do
-    Logger.info ["update_status "]
     {:noreply, Map.put(state, "status", status), progress_timeout}
   end
   # def handle_info({:documents, new_documents}, %{"documents" => documents, "total" => total}=state) when documents >= total do

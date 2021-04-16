@@ -3,6 +3,19 @@ defmodule Xlsx.SrsWeb.Consult.Consult do
 
   alias Xlsx.Date.Date, as: DateLib
 
+  def file_name (query) do
+    consultation_date(query, "$gte") <> "-" <> consultation_date(query, "$lte")
+  end
+  defp consultation_date(query, operator) do
+    DateLib.string_date(
+      Map.get(query, "consultation_date", %{})
+        |> Map.get(operator, :nil)
+        |> DateTime.shift_zone!("America/Mexico_City"),
+      "",
+      "MMDDYYYY"
+    )
+  end
+
   def iterate_fields(_item, []) do
     []
   end
@@ -20,6 +33,12 @@ defmodule Xlsx.SrsWeb.Consult.Consult do
     item
   end
 
+  def get_value(item, [_h|_t], "patient|address|street", default_value) do
+    case Map.get(item, "patient", %{}) |> Map.get("address", %{}) |> Map.get("street", :undefined) do
+      :undefined -> default_value
+      street -> street <> " " <>(Map.get(item, "patient", %{}) |> Map.get("address", %{}) |> Map.get("number", ""))
+    end
+  end
   def get_value(item, [_h|_t], "affiliate_program", default_value) do
     case Map.get(item, "patient", %{}) |> Map.get("dh", :undefined)do
       :undefined -> default_value
@@ -44,7 +63,7 @@ defmodule Xlsx.SrsWeb.Consult.Consult do
       _ -> default_value
     end
   end
-  def get_value(item, [_h|_t], "diagnosis", default_value) do
+  def get_value(item, [_h|_t], "diagnosis", _default_value) do
     diagnosis = Map.get(item, "diagnosis", []);
     new_diagnosis = case length(diagnosis) do
       0 ->
@@ -81,7 +100,6 @@ defmodule Xlsx.SrsWeb.Consult.Consult do
   end
 
   def get_value(item, [_h|_t], "_id", default_value) do
-    Logger.info ["unit #{inspect Map.get(item, "unitLevel", :undefined)}"]
     case Map.get(item, "unitLevel", :undefined) do
       "N2" ->
         "https://michoacan.efimed.care/#/app/consultas/detalle/N2/" <> Map.get(item, "_id", default_value)
@@ -100,7 +118,7 @@ defmodule Xlsx.SrsWeb.Consult.Consult do
     end
   end
 
-  def get_diagnosis(diagnosis, list, 3) do
+  def get_diagnosis(_diagnosis, list, 3) do
     list
   end
   def get_diagnosis([h|t], list, count_diagnosis) do

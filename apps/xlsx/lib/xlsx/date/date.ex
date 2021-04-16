@@ -5,6 +5,9 @@ defmodule Xlsx.Date.Date do
   def string_time(date, separator) do
     string_number(date.hour) <> separator <> string_number(date.minute) <> separator <> string_number(date.second)
   end
+  def string_date(date, separator, "MMDDYYYY") do
+    string_number(date.month) <> separator <> string_number(date.day) <> separator <> string_number(date.year)
+  end
   def string_date(date, separator) do
     string_number(date.day) <> separator <> string_number(date.month) <> separator <> string_number(date.year)
   end

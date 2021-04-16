@@ -7,6 +7,7 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
   alias Xlsx.Logger.LibLogger, as: LibLogger
   alias Xlsx.Date.Date, as: DateLib
   alias Xlsx.Report.Report, as: ReportLib
+  alias Xlsx.SrsWeb.Consult.Consult, as: Consult
 
   # API
   def start(state) do
@@ -38,11 +39,13 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
+  def handle_cast(:generate, %{"query" => query, "rows" => rows, "columns" => columns, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
+    date_now = DateTime.now!("America/Mexico_City")
+    date = DateLib.string_date(date_now, "/")
+    time = DateLib.string_time(date_now, ":")
     LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
     widths = ReportLib.col_widths(3, columns)
-    Logger.info ["#{inspect widths}"]
     new_rows = for {item, i} <- Enum.with_index(rows),
       do: ["", [i + 1, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 10, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]] ++ item
 
@@ -54,16 +57,12 @@ defmodule Xlsx.SrsWeb.Consult.Collector do
       row_heights: %{5 => 70}
     }
     |> Sheet.set_cell("B5", "No.", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 9, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    |> Sheet.set_cell("E1", "REGISTRO DIARIO DE PACIENTES EN CONSULTA EXTERNA (12/04/2021 11:20 AM)", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
-
-
-
-    file_name = DateLib.get_date_now(:undefined, "-")
+    |> Sheet.set_cell("E1", "REGISTRO DIARIO DE PACIENTES EN CONSULTA EXTERNA (" <> date <> " " <> time <> ")", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
+    file_name = Consult.file_name(query)
     file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(:filename.join(file_path, file_name))
-
     LibLogger.save_event(__MODULE__, :done_xlsx, socket_id, %{})
-    send(progress, {:done, file_name, file_path})
+    send(progress, {:done, file_name, file_path, date_now})
     # GenServer.cast(self(), :stop)
     {:noreply, Map.put(state, "rows", rows)}
   end
