@@ -47,9 +47,13 @@ defmodule Xlsx.SrsWeb.Reference.Reference do
     hospital_key_clues <> " - " <> hospital_name
   end
   def get_value(item, [_h|_t], "diagnosis", _default_value) do
-    diagnosis_key = Map.get(item, "reference_data", %{}) |> Map.get("diagnosis", %{}) |> Map.get("key", "")
-    diagnosis_description = Map.get(item, "reference_data", %{}) |> Map.get("diagnosis", %{}) |> Map.get("description", "")
-    diagnosis_key <> " - " <> diagnosis_description
+    # diagnosis_key = Map.get(item, "reference_data", %{}) |> Map.get("diagnosis", %{}) |> Map.get("key", "")
+    # diagnosis_description = Map.get(item, "reference_data", %{}) |> Map.get("diagnosis", %{}) |> Map.get("description", "")
+    # diagnosis_key <> " - " <> diagnosis_description
+
+    # Anteriormente el diagnosis_key se sacaba de: reference_data.diagnosis.key
+    # Pero se modifica para que ahora se obtenga de: reference.detail.diagnostic_entry. Relacionado al ticket: T-16042021-002
+    Map.get(item, "reference", %{}) |> Map.get("detail", %{}) |> Map.get("diagnostic_entry", "")
   end
 
   def get_value(item, [h|t], field, default_value) do

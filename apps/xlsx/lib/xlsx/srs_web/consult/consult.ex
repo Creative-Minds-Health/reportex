@@ -34,10 +34,9 @@ defmodule Xlsx.SrsWeb.Consult.Consult do
   end
 
   def get_value(item, [_h|_t], "patient|address|street", default_value) do
-    case Map.get(item, "patient", %{}) |> Map.get("address", %{}) |> Map.get("street", :undefined) do
-      :undefined -> default_value
-      street -> street <> " " <>(Map.get(item, "patient", %{}) |> Map.get("address", %{}) |> Map.get("number", ""))
-    end
+    street = Map.get(item, "patient", %{}) |> Map.get("address", %{}) |> Map.get("street", default_value)
+    number = Map.get(item, "patient", %{}) |> Map.get("address", %{}) |> Map.get("number", default_value)
+    street <> " " <> number
   end
   def get_value(item, [_h|_t], "affiliate_program", default_value) do
     case Map.get(item, "patient", %{}) |> Map.get("dh", :undefined)do
