@@ -185,7 +185,7 @@ defmodule Xlsx.SrsWeb.Vaccination.Report do
   def name_columns(rows) do
     for item <- rows,
       into: [],
-      do: [item["name"], rotate_text: Map.get(item, "rotate_text", :nil), width: Map.get(item, "width", 30),  bold: true,  wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 9, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]
+      do: [item["name"], bg_color: "#d1d5da", rotate_text: Map.get(item, "rotate_text", :nil), width: Map.get(item, "width", 30),  bold: true,  wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12]
   end
 
   def rows_with_out_specials(rows) do

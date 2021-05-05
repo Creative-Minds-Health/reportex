@@ -27,7 +27,7 @@ defmodule Xlsx.SrsWeb.Vaccination.Collector do
     |> Stream.map(&(
       for item <- &1,
         into: [],
-        do: [item, font: "Arial", size: 10, align_horizontal: :left, wrap_text: true, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]
+        do: [item, font: "Arial", size: 10, align_horizontal: :left, wrap_text: true]
     ))
     |> Enum.to_list()
     send(progress, {:documents, documents})
@@ -47,17 +47,25 @@ defmodule Xlsx.SrsWeb.Vaccination.Collector do
     send(progress, {:update_status, :writing})
     widths = ReportLib.col_widths(3, columns)
     new_rows = for {item, i} <- Enum.with_index(rows),
-      do: ["", [i + 1, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 10, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]]]] ++ item
+      do: ["", [i + 1, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 10]] ++ item
 
     sheet = %Sheet{
       name: "Resultados",
-      rows: [[], [], [], []] ++ [["", ""] ++ columns] ++ new_rows,
-      merge_cells: [{"E1", "W2"}],
+      rows: [[], [], [], [], [], [], [], []] ++ [["", ""] ++ columns] ++ new_rows,
+      merge_cells: [{"D1", "G5"}],
       col_widths: widths,
-      row_heights: %{5 => 70}
+      row_heights: %{9 => 30}
     }
-    |> Sheet.set_cell("B5", "No.", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 9, border: [bottom: [style: :medium, color: "#000000"], top: [style: :medium, color: "#000000"], left: [style: :medium, color: "#000000"], right: [style: :medium, color: "#000000"]])
-    |> Sheet.set_cell("E1", "REGISTRO DIARIO DE PACIENTES EN CONSULTA EXTERNA (" <> date <> " " <> time <> ")", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
+
+
+
+    |> Sheet.set_cell("C7", "Usuario capturó:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
+    |> Sheet.set_cell("E7", "Día de cita:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
+    |> Sheet.set_cell("G7", "Día de asistencia:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
+    |> Sheet.set_cell("I7", "SEDE de vacunación:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
+
+    |> Sheet.set_cell("B9", "#", bg_color: "#d1d5da", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12)
+    |> Sheet.set_cell("D1", "Asistencia vacunación contra COVID-19  (Educación)", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
     #file_name = Consult.file_name(query)
     file_name = "reporte"
     file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
