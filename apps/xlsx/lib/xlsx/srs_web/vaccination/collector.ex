@@ -49,6 +49,18 @@ defmodule Xlsx.SrsWeb.Vaccination.Collector do
     new_rows = for {item, i} <- Enum.with_index(rows),
       do: ["", [i + 1, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 10]] ++ item
 
+    appointment_date = case Map.get(params, "appointment_date", "N/A") do
+      "N/A" -> "N/A"
+      date ->
+        DateLib.get_date_now(date, "/")
+    end
+
+    assistance_date = case Map.get(params, "assistance_date", "N/A") do
+      "N/A" -> "N/A"
+      date ->
+        DateLib.get_date_now(date, "/")
+    end
+
     sheet = %Sheet{
       name: "Resultados",
       rows: [[], [], [], [], [], [], [], []] ++ [["", ""] ++ columns] ++ new_rows,
@@ -61,10 +73,10 @@ defmodule Xlsx.SrsWeb.Vaccination.Collector do
     |> Sheet.set_cell("D7", Map.get(params, "user", "N/A"), wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
 
     |> Sheet.set_cell("E7", "Día de cita:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
-    |> Sheet.set_cell("F7", DateLib.get_date_now(Map.get(params, "appointment_date", "N/A"), "/"), wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
+    |> Sheet.set_cell("F7", appointment_date, wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
 
     |> Sheet.set_cell("G7", "Día de asistencia:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
-    |> Sheet.set_cell("H7", DateLib.get_date_now(Map.get(params, "assistance_date", "N/A"), "/"), wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
+    |> Sheet.set_cell("H7", assistance_date, wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
 
     |> Sheet.set_cell("I7", "SEDE de vacunación:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
     |> Sheet.set_cell("J7", Map.get(params, "clues", "N/A"), wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
