@@ -34,7 +34,7 @@ defmodule Xlsx.SrsWeb.Vaccination.Progress do
 
 
   @impl true
-  def handle_info({:done , file_name, file_path, date}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
+  def handle_info({:done , file_name, file_path}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
     new_map =
       Map.put(map, "file", :filename.join(file_path, file_name))

@@ -41,8 +41,6 @@ defmodule Xlsx.SrsWeb.Vaccination.Collector do
   @impl true
   def handle_cast(:generate, %{"query" => query, "rows" => rows, "columns" => columns, "parent" => _parent, "progress" => progress, "socket_id" => socket_id, "params" => params}=state) do
     date_now = DateTime.now!("America/Mexico_City")
-    date = DateLib.string_date(date_now, "/")
-    time = DateLib.string_time(date_now, ":")
     LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
     widths = ReportLib.col_widths(3, columns)
@@ -83,12 +81,11 @@ defmodule Xlsx.SrsWeb.Vaccination.Collector do
 
     |> Sheet.set_cell("B9", "#", bg_color: "#d1d5da", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12)
     |> Sheet.set_cell("D1", "Asistencia vacunación contra COVID-19  (Educación)", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
-    #file_name = Consult.file_name(query)
-    file_name = "reporte"
+    file_name = DateLib.string_date(date_now, "-")
     file_path = :filename.join(:code.priv_dir(:xlsx), "assets/report/")
     Workbook.append_sheet(%Workbook{}, sheet) |> Elixlsx.write_to(:filename.join(file_path, file_name))
     LibLogger.save_event(__MODULE__, :done_xlsx, socket_id, %{})
-    send(progress, {:done, file_name, file_path, date_now})
+    send(progress, {:done, file_name, file_path})
     # GenServer.cast(self(), :stop)
     {:noreply, Map.put(state, "rows", rows)}
   end
