@@ -39,7 +39,7 @@ defmodule Xlsx.SrsWeb.Vaccination.Collector do
   end
 
   @impl true
-  def handle_cast(:generate, %{"query" => query, "rows" => rows, "columns" => columns, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
+  def handle_cast(:generate, %{"query" => query, "rows" => rows, "columns" => columns, "parent" => _parent, "progress" => progress, "socket_id" => socket_id, "params" => params}=state) do
     date_now = DateTime.now!("America/Mexico_City")
     LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
@@ -55,12 +55,17 @@ defmodule Xlsx.SrsWeb.Vaccination.Collector do
       row_heights: %{9 => 30}
     }
 
-
-
     |> Sheet.set_cell("C7", "Usuario capturó:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
+    |> Sheet.set_cell("D7", Map.get(params, "user", "N/A"), wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
+
     |> Sheet.set_cell("E7", "Día de cita:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
+    |> Sheet.set_cell("F7", DateLib.get_date_now(Map.get(params, "appointment_date", "N/A"), "/"), wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
+
     |> Sheet.set_cell("G7", "Día de asistencia:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
+    |> Sheet.set_cell("H7", DateLib.get_date_now(Map.get(params, "assistance_date", "N/A"), "/"), wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
+
     |> Sheet.set_cell("I7", "SEDE de vacunación:", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :right, font: "Arial", size: 12)
+    |> Sheet.set_cell("J7", Map.get(params, "clues", "N/A"), wrap_text: true, align_vertical: :center, align_horizontal: :left, font: "Arial", size: 12)
 
     |> Sheet.set_cell("B9", "#", bg_color: "#d1d5da", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12)
     |> Sheet.set_cell("D1", "Asistencia vacunación contra COVID-19  (Educación)", bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 15)
