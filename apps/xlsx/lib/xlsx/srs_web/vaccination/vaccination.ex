@@ -43,79 +43,10 @@ defmodule Xlsx.SrsWeb.Vaccination.Vaccination do
     item
   end
 
-  def get_value(item, [_h|_t], "patient|address|street", default_value) do
-    street = Map.get(item, "patient", %{}) |> Map.get("address", %{}) |> Map.get("street", default_value)
-    number = Map.get(item, "patient", %{}) |> Map.get("address", %{}) |> Map.get("number", default_value)
-    street <> " " <> number
-  end
-  def get_value(item, [_h|_t], "affiliate_program", default_value) do
-    case Map.get(item, "patient", %{}) |> Map.get("dh", :undefined)do
-      :undefined -> default_value
-      dh -> get_dh(dh)
-    end
-  end
-  def get_value(item, [_h|_t], "patient|migrant|key", default_value) do
-    case Map.get(item, "patient", %{}) |> Map.get("migrant", %{}) |> Map.get("key", :undefined) do
-      1 -> "X"
-      _ -> default_value
-    end
-  end
-  def get_value(item, [_h|_t], "patient|indigenous|key", default_value) do
-    case Map.get(item, "patient", %{}) |> Map.get("indigenous", %{}) |> Map.get("key", :undefined) do
-      1 -> "X"
-      _ -> default_value
-    end
-  end
-  def get_value(item, [_h|_t], "patient|disability", default_value) do
-    case Map.get(item, "patient", %{}) |> Map.get("disability", :undefined) do
-      true -> "X"
-      _ -> default_value
-    end
-  end
-  def get_value(item, [_h|_t], "diagnosis", _default_value) do
-    diagnosis = Map.get(item, "diagnosis", []);
-    new_diagnosis = case length(diagnosis) do
-      0 ->
-        [%{}, %{}, %{}]
-      1 ->
-        diagnosis ++ [%{}, %{}]
-      2 ->
-        diagnosis ++ [%{}]
-      _ -> diagnosis
-
-    end
-    {:multi, get_diagnosis(new_diagnosis, [], 0)}
-  end
-  def get_value(item, [_h|_t], "reference", default_value) do
-    case Map.get(item, "reference_data", %{}) |> Map.get("reference_contrareference", %{}) |> Map.get("key", :undefined) do
-      1 -> "X"
-      _ -> default_value
-    end
-  end
-  def get_value(item, [_h|_t], "contrarreference", default_value) do
-    case Map.get(item, "reference_data", %{}) |> Map.get("reference_contrareference", %{}) |> Map.get("key", :undefined) do
-      2 -> "X"
-      _ -> default_value
-    end
+  def get_value(item, [_h|_t], "current_date", default_value) do
+    DateLib.string_date( Map.get(item, "current_date") |> DateTime.shift_zone!("America/Mexico_City"), "/", "DD/MM/YYYY HH:MM")
   end
 
-  def get_value(item, [_h|_t], "reference_clue_name", default_value) do
-    case Map.get(item, "unitLevel", :undefined) do
-      "N2" ->
-        Map.get(item, "reference", %{}) |> Map.get("unit_clue_origin", %{}) |> Map.get("name", default_value)
-      _ ->
-        Map.get(item, "reference_data", %{}) |> Map.get("hospital_name", default_value)
-    end
-  end
-
-  def get_value(item, [_h|_t], "_id", default_value) do
-    case Map.get(item, "unitLevel", :undefined) do
-      "N2" ->
-        "https://michoacan.efimed.care/#/app/consultas/detalle/N2/" <> Map.get(item, "_id", default_value)
-      _ ->
-        "https://michoacan.efimed.care/#/app/consultas/detalle/N1/" <> Map.get(item, "_id", default_value)
-    end
-  end
   def get_value(item, [h|t], field, default_value) do
     case Map.get(item, h, :undefined) do
       :undefined -> default_value
