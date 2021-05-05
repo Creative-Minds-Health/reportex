@@ -64,7 +64,14 @@ defmodule Xlsx.Decode.Query do
       _-> value
     end
   end
-
+  # Se agrega match para hacer una expresión regular en un string y verificar si es un string de fecha.
+  # "2021-05-04T05:00:00.000Z"
+  defp priv_decode({_map, _acc}, _key, value) when is_bitstring(value) do
+    case String.match?(value, ~r/([0-9]{4}[-][0-9]{2}[-][0-9]{2}[T][0-9]{2}[:][0-9]{2}[:][0-9]{2}[.][0-9]{3}[Z])/) do
+      true -> to_date(value)
+      _-> value
+    end
+  end
   defp priv_decode({_map, _acc}, _key, value) do
     value
   end
