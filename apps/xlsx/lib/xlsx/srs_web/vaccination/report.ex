@@ -6,6 +6,7 @@ defmodule Xlsx.SrsWeb.Vaccination.Report do
   alias Xlsx.SrsWeb.Vaccination.Progress, as: Progress
   alias Xlsx.SrsWeb.Vaccination.Collector, as: Collector
   alias Xlsx.SrsWeb.Vaccination.Worker, as: Worker
+  alias Xlsx.SrsWeb.Vaccination.Vaccination, as: Vaccination
   alias Xlsx.Mnesia.Worker, as: MWorker
   alias Xlsx.Logger.LibLogger, as: LibLogger
 
@@ -19,8 +20,9 @@ defmodule Xlsx.SrsWeb.Vaccination.Report do
   def init(state) do
     Process.flag(:trap_exit, true)
     GenServer.cast(self(), :start)
-    Logger.info ["#{inspect state}"]
-    {:ok, Map.put(state, "collector", %{})
+    params = Vaccination.get_params(state)
+    {:ok, Map.put(state, "data", Map.put(Map.get(state, "data"), "params", params)) |>
+      Map.put("collector", %{})
       |> Map.put("total", 0)
       |> Map.put("page", 1)
       |> Map.put("skip", 0)
@@ -75,7 +77,7 @@ defmodule Xlsx.SrsWeb.Vaccination.Report do
     send(progress, {:update_total, total})
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
-    {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
+    {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"], "params" => data["params"]})
     Process.monitor(collector)
     for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
       {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"] }),

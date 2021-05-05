@@ -3,6 +3,16 @@ defmodule Xlsx.SrsWeb.Vaccination.Vaccination do
 
   alias Xlsx.Date.Date, as: DateLib
 
+  def get_params(state) do
+    [%{"$match" => query} | _] = Map.get(state, "data") |> Map.get("query")
+    %{
+      "user" => Map.get(query, "assistance.current.user.email", "N/A"),
+      "appointment_date" => Map.get(query, "date_date", "N/A"),
+      "assistance_date" => Map.get(query, "assistance.current.date", %{}) |> Map.get("$gte", "N/A"),
+      "clues" => Map.get(query, "clues.key", "N/A")
+    }
+  end
+
   def file_name (query) do
     consultation_date(query, "$gte") <> "-" <> consultation_date(query, "$lte")
   end

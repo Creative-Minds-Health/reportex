@@ -36,10 +36,9 @@ defmodule Xlsx.SrsWeb.Vaccination.Progress do
   @impl true
   def handle_info({:done , file_name, file_path, date}, %{"res_socket" => res_socket, "parent" => parent, "socket_id" => socket_id}=state) do
     map = Application.get_env(:xlsx, :srs_gcs)
-    _time = DateLib.string_time(date, "-")
     new_map =
       Map.put(map, "file", :filename.join(file_path, file_name))
-      |> Map.put("destination", Map.get(map, "destination") <> "/consultas/" <> file_name <> ".xlsx")
+      |> Map.put("destination", Map.get(map, "destination") <> "/asistencias/vacunación_" <> file_name <> ".xlsx")
       |> Map.put("expires", Map.get(map, "expires", 1))
 
     case NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000) do
