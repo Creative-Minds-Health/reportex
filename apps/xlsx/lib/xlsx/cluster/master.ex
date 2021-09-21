@@ -55,7 +55,7 @@ defmodule Xlsx.Cluster.Master do
 
   @impl true
   def terminate(_reason, _state) do
-    Logger.warning ["#{inspect self()}... terminate"]
+    Logger.warn ["#{inspect self()}... terminate"]
     :ok
   end
 end

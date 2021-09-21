@@ -46,7 +46,7 @@ defmodule Xlsx.Socket do
 
   @impl true
   def handle_info({:next, %{}}, state) do
-    # Logger.warning ["Ya no hay nada"]
+    # Logger.warn ["Ya no hay nada"]
     {:noreply, state}
   end
 
@@ -91,7 +91,7 @@ defmodule Xlsx.Socket do
 
   @impl true
   def terminate(_reason, state) do
-    Logger.warning ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state["project"]]
+    Logger.warn ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state["project"]]
     :ok
   end
 

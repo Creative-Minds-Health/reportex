@@ -32,6 +32,7 @@ defmodule Xlsx.Cluster.Listener do
       {"srs", "reference"} -> Xlsx.SrsWeb.Reference.Report.start(Map.put(request, "listener", self()))
       {"srs", "consult"} -> Xlsx.SrsWeb.Consult.Report.start(Map.put(request, "listener", self()))
       {"srs", "vaccination"} -> Xlsx.SrsWeb.Vaccination.Report.start(Map.put(request, "listener", self()))
+      {"ors", "entry_products"} -> Xlsx.Ors.Product.Entry.Report.start(Map.put(request, "listener", self()))
       _-> :nill
     end
     #{:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))
@@ -96,7 +97,7 @@ defmodule Xlsx.Cluster.Listener do
 
   @impl true
   def terminate(_reason, _state) do
-    Logger.warning ["#{inspect self()}... terminate"]
+    Logger.warn ["#{inspect self()}... terminate"]
     :ok
   end
 end

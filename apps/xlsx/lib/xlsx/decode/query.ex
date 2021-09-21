@@ -34,6 +34,14 @@ defmodule Xlsx.Decode.Query do
     {:ok, id} = BSON.ObjectId.encode(map["_id"])
     id
   end
+  defp priv_decode({map, _acc}, "destination._id", value) when is_bitstring(value) do
+    {_, idbin} = Base.decode16(map["destination._id"], case: :mixed)
+    %BSON.ObjectId{value: idbin}
+  end
+  defp priv_decode({map, _acc}, "origin._id", value) when is_bitstring(value) do
+    {_, idbin} = Base.decode16(map["origin._id"], case: :mixed)
+    %BSON.ObjectId{value: idbin}
+  end
   defp priv_decode({_map, _acc}, "$gte", value) when is_bitstring(value) do
     to_date(value)
   end

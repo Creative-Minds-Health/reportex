@@ -69,7 +69,7 @@ defmodule Xlsx.Request do
     LibLogger.save_event(__MODULE__, :tcp_message, Map.get(data_decode, "socket_id", :nill), data_decode)
     new_state = case MNode.next_node() do
       :undefined ->
-        Logger.warning ["Petición en turno"]
+        Logger.warn ["Petición en turno"]
         MSocket.save_socket(res_socket, self(), data_decode, MSocket.empty_sockets(), :waiting)
         Map.put(state, "data", data_decode) |> Map.put("res_socket", res_socket)
       node ->
