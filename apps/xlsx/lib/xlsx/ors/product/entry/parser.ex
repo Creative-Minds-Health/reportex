@@ -44,6 +44,13 @@ defmodule Xlsx.Ors.Product.Entry.Parser do
       {_, _} -> Map.get(item, "_id") |> Map.get("origin") |> Map.get("name")
     end
   end
+  def get_value(item, [_h|_t], "_id|returned", _default_value) do
+    value = Map.get(item, "_id") |> Map.get("returned", :nil)
+    case value do
+      :true -> "SI"
+      _-> ""
+    end
+  end
 
   def get_value(item, [h|t], field, default_value) do
     case Map.get(item, h, :undefined) do

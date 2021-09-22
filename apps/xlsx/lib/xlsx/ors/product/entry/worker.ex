@@ -33,7 +33,7 @@ defmodule Xlsx.Ors.Product.Entry.Worker do
 
   @impl true
   def handle_info({:run, skip, _limit, documents}, %{"query" => query, "rows" => rows, "collector" => collector, "parent" => parent, "collection" => collection}=state) do
-    cursor = Mongo.aggregate(:mongo, collection, query ++ [%{"$skip" => skip}, %{"$limit" => documents}], [timeout: 60_000])
+    cursor = Mongo.aggregate(:mongo, collection, query ++ [%{"$skip" => skip}, %{"$limit" => documents}], [allow_disk_use: true, timeout: 60_000])
     {:ok, _date} = DateTime.now("America/Mexico_City")
     records = cursor
       |> Stream.map(&(

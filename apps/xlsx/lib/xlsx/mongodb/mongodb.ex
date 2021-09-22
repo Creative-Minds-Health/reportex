@@ -31,7 +31,7 @@ defmodule Xlsx.Mongodb.Mongodb do
   end
 
   def count_query_aggregate(data_decode, collection) do
-    count = Mongo.aggregate(:mongo, collection, data_decode["query"])
+    count = Mongo.aggregate(:mongo, collection, data_decode["query"], [allow_disk_use: true])
     |> Stream.map(&(
       &1["total"]
     ))
