@@ -40,6 +40,11 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
   def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "query" => query, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
     LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
+    status_key = case ( Map.get(query, "status.key", %{}) |> Map.get("$in", :nil) ) do
+      :nil -> "Sin filtro"
+      keys -> concat_status_keys(keys, "", :first)
+    end
+
     widths = for index <- 1..110, into: %{}, do:  {index, 30}
     sheet = %Sheet{
       name: "Resultados",
@@ -73,8 +78,8 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
     |> Sheet.set_cell("J5", Map.get(query, "stay.admission_service.key", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
 
     |> Sheet.set_cell("C6", "Estatus:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
-    |> Sheet.set_cell("D6", Map.get(query, "status.key", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
-
+    # |> Sheet.set_cell("D6", Map.get(query, "status.key", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
+    |> Sheet.set_cell("D6", status_key, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
     |> Sheet.set_cell("E6", "Código CIE-9 de procedimiento:", bold: true, font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
     |> Sheet.set_cell("F6", Map.get(query, "procedures.diagnosis.key_diagnosis", "Sin filtro"), font: "Arial", size: 12, align_horizontal: :left, wrap_text: true, align_vertical: :center)
 
@@ -113,5 +118,15 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
       [] -> "Sin filtro"
       [%{"patient.fullname" => %{"$options" => _, "$regex" => fullname}}|_] -> fullname
     end
+  end
+
+  defp concat_status_keys([], acc, _) do
+    acc
+  end
+  defp concat_status_keys([h|t], acc, :first) do
+    concat_status_keys(t, acc <> Integer.to_string(h), :nil)
+  end
+  defp concat_status_keys([h|t], acc, :nil) do
+    concat_status_keys(t, acc <> "," <> Integer.to_string(h), :nil)
   end
 end
