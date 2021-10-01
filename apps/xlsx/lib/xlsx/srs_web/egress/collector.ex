@@ -40,10 +40,11 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
   def handle_cast(:generate, %{"rows" => rows, "columns" => columns, "query" => query, "parent" => _parent, "progress" => progress, "socket_id" => socket_id}=state) do
     LibLogger.save_event(__MODULE__, :generating_xlsx, socket_id, %{})
     send(progress, {:update_status, :writing})
-    status_key = case ( Map.get(query, "status.key", %{}) |> Map.get("$in", :nil) ) do
-      :nil -> "Sin filtro"
-      keys -> concat_status_keys(keys, "", :first)
-    end
+    status_key = get_status_key(query)
+    # status_key = case ( Map.get(query, "status.key", %{}) |> Map.get("$in", :nil) ) do
+    #   :nil -> "Sin filtro"
+    #   keys -> concat_status_keys(keys, "", :first)
+    # end
 
     widths = for index <- 1..110, into: %{}, do:  {index, 30}
     sheet = %Sheet{
@@ -120,6 +121,20 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
     end
   end
 
+  defp get_status_key(query) do
+    status_key = Map.get(query, "status.key", %{})
+    case is_numer(status_key) do
+      true -> Integer.to_string(h)
+      _->
+        keys = Map.get(status_key, "$in", "Sin filtro")
+        concat_status_keys(keys, "", :first)
+      end
+    end
+  end
+
+  defp concat_status_keys("Sin filtro", _, _) do
+    "Sin filtro"
+  end
   defp concat_status_keys([], acc, _) do
     acc
   end
