@@ -123,12 +123,11 @@ defmodule Xlsx.SrsWeb.Egress.Collector do
 
   defp get_status_key(query) do
     status_key = Map.get(query, "status.key", %{})
-    case is_numer(status_key) do
-      true -> Integer.to_string(h)
+    case is_number(status_key) do
+      true -> Integer.to_string(status_key)
       _->
         keys = Map.get(status_key, "$in", "Sin filtro")
         concat_status_keys(keys, "", :first)
-      end
     end
   end
 
