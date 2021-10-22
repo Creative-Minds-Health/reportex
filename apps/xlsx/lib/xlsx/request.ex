@@ -31,7 +31,7 @@ defmodule Xlsx.Request do
     {:ok, socket} = :gen_tcp.accept(lsocket)
     LibLogger.save_event(__MODULE__, :tcp_accepted, :nill, %{})
     GenServer.cast(parent, :create_child)
-    :ok = :inet.setopts(socket,[{:active,:once}])
+    :ok = :inet.setopts(socket,[{:active,:once}, {:buffer, 9000}])
     {:noreply, Map.put(state, "socket", socket), 300_000};
   end
   def handle_cast({:stop, node}, %{"socket" => socket, "data" => data}=state) do

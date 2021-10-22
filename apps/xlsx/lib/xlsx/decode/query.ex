@@ -11,7 +11,13 @@ defmodule Xlsx.Decode.Query do
     [map | decode(t)]
   end
   def decode([map|t]) when is_bitstring(map)  do
-    [to_date(map) | decode(t)]
+
+    value = case String.match?(map, ~r/([0-9]{4}[-][0-9]{2}[-][0-9]{2}[T][0-9]{2}[:][0-9]{2}[:][0-9]{2}[.][0-9]{3}[Z])/) do
+      true -> to_date(map)
+      _-> map
+    end
+    # [to_date(map) | decode(t)]
+    [value | decode(t)]
   end
   def decode([map|t]) do
     [priv_decode({map, %{}}, Map.keys(map)) | decode(t)]
@@ -53,6 +59,16 @@ defmodule Xlsx.Decode.Query do
   end
   defp priv_decode({_map, _acc}, "$lt", value) when is_bitstring(value) do
     to_date(value)
+  end
+  defp priv_decode({_map, _acc}, "$in", value) do
+    Enum.map(value, fn item ->
+      case (is_bitstring(item) && String.length(item) === 24) do
+        true ->
+          {_, idbin} = Base.decode16(item, case: :mixed)
+          %BSON.ObjectId{value: idbin}
+        _-> item
+      end
+    end)
   end
   defp priv_decode({_map, _acc}, _key, value) when is_map(value) do
     new_value = case Map.keys(value) do

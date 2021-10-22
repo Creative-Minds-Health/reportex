@@ -33,6 +33,7 @@ defmodule Xlsx.Cluster.Listener do
       {"srs", "consult"} -> Xlsx.SrsWeb.Consult.Report.start(Map.put(request, "listener", self()))
       {"srs", "vaccination"} -> Xlsx.SrsWeb.Vaccination.Report.start(Map.put(request, "listener", self()))
       {"ors", "entry_products"} -> Xlsx.Ors.Product.Entry.Report.start(Map.put(request, "listener", self()))
+      {"ors", "billed_consumption"} -> Xlsx.Ors.Product.BilledConsumption.Report.start(Map.put(request, "listener", self()))
       _-> :nill
     end
     #{:ok, pid} = Xlsx.Report.Report.start(Map.put(request, "listener", self()))

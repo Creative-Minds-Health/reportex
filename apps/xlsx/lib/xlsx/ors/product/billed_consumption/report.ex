@@ -1,13 +1,14 @@
-defmodule Xlsx.SrsWeb.Egress.Report do
+defmodule Xlsx.Ors.Product.BilledConsumption.Report do
   use GenServer
   require Logger
 
   alias Xlsx.Mongodb.Mongodb, as: Mongodb
-  alias Xlsx.SrsWeb.Egress.Progress, as: Progress
-  alias Xlsx.SrsWeb.Egress.Collector, as: Collector
-  alias Xlsx.SrsWeb.Egress.Worker, as: Worker
+  alias Xlsx.Ors.Product.BilledConsumption.Progress, as: Progress
+  alias Xlsx.Ors.Product.BilledConsumption.Collector, as: Collector
+  alias Xlsx.Ors.Product.BilledConsumption.Worker, as: Worker
   alias Xlsx.Mnesia.Worker, as: MWorker
   alias Xlsx.Logger.LibLogger, as: LibLogger
+  alias Xlsx.Decode.Query, as: DQuery
 
   # API
   def start(state) do
@@ -18,8 +19,14 @@ defmodule Xlsx.SrsWeb.Egress.Report do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    GenServer.cast(self(), :start)
-    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0) |> Map.put("status", :doing)}
+    GenServer.cast(self(), :init)
+    {:ok, Map.put(state, "collector", %{})
+      |> Map.put("total", 0)
+      |> Map.put("page", 1)
+      |> Map.put("skip", 0)
+      |> Map.put("status", :doing)
+      |> Map.put("current_query", [])
+    }
   end
 
   @impl true
@@ -36,6 +43,40 @@ defmodule Xlsx.SrsWeb.Egress.Report do
   end
 
   @impl true
+  def handle_cast(:init, %{"res_socket" => res_socket, "data" => data}=state) do
+    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
+    Process.monitor(progress)
+    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
+    {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "requests" => [], "remissions" => [], "columns" => name_columns(record["rows"]), "query" => %{}, "progress" => progress, "socket_id" => data["socket_id"], "params" => data["params"], "fields" => Map.get(record, "rows")})
+    Process.monitor(collector)
+    new_state = Map.put(state, "record", record) |> Map.put("progress", progress) |> Map.put("collector", collector)
+    LibLogger.save_event(__MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
+    GenServer.cast(self(), {:iterate_queries, data["query"]})
+    {:noreply, new_state}
+  end
+  def handle_cast({:iterate_queries, []}, %{"collector" => collector}=state) do
+    GenServer.cast(collector, :merge)
+    {:noreply, state}
+  end
+  def handle_cast({:iterate_queries, [query|t]}, %{"data" => data, "record" => record}=state) do
+    decode_query = DQuery.decode(query)
+    current_query = List.delete_at(decode_query, 0)
+    [%{"collection" => collection} | _] =  decode_query;
+    new_data = Map.put(data, "query", t)
+    sum_query = current_query ++ [%{"$group" => %{"_id" => :null, "total" => %{"$sum" => 1} } }]
+    send(self(), {:count, Mongodb.count_query_aggregate(%{"query" =>  sum_query}, collection )})
+    {:noreply, Map.put(state, "current_query", current_query)
+      |> Map.put("data", new_data)
+      |> Map.put("total", 0)
+      |> Map.put("page", 1)
+      |> Map.put("skip", 0)
+      |> Map.put("status", :doing)
+      |> Map.put("record", Map.put(record, "collection", collection) )
+    }
+  end
+
+
+  # GenServer.cast(self(), :start)
   def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
     {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
     Process.monitor(progress)
@@ -56,27 +97,32 @@ defmodule Xlsx.SrsWeb.Egress.Report do
 
   @impl true
 
-  def handle_info({:count, 0}, %{"progress" => progress, "socket_id" => socket_id, "res_socket" => res_socket}=state) do
-    Logger.warn "count 0"
-    {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", socket_id))
-    :gen_tcp.send(res_socket, response)
-    GenServer.cast(progress, :stop)
-    GenServer.cast(self(), :stop)
+  def handle_info({:count, 0}, %{"progress" => progress, "data" => data, "res_socket" => res_socket, "collector" => collector, "record" => record}=state) do
+    case data["query"] do
+      [] ->
+        GenServer.cast(collector, :generate)
+        # {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", data["socket_id"]))
+        # :gen_tcp.send(res_socket, response)
+        # GenServer.cast(progress, :stop)
+        # GenServer.cast(self(), :stop)
+      _->
+        GenServer.cast(self(), {:iterate_queries, data["query"]})
+    end
     {:noreply, state}
   end
-  def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page}=state) do
+  def handle_info({:count, total}, %{"progress" => progress, "record" => record, "data" => data, "page" => page, "current_query" => current_query, "collector" => collector}=state) do
     send(progress, {:update_total, total})
-    [%{"$match" => query} | _] = data["query"];
+    [%{"$match" => query} | _] = current_query;
     {:ok, date} = DateTime.now("America/Mexico_City")
-    {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
-    Process.monitor(collector)
+    # {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => current_query, "progress" => progress, "socket_id" => data["socket_id"], "params" => data["params"]})
+    # Process.monitor(collector)
     for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
-      {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
+      {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => current_query, "collector" => collector, "collection" => record["collection"] }),
       Process.monitor(pid),
       :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
-    new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
+    new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"])
     LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
     send(self(), {:run, page * record["config"]["documents"]})
     {:noreply, new_state}
@@ -142,11 +188,12 @@ defmodule Xlsx.SrsWeb.Egress.Report do
     send(self(), :kill)
     {:noreply, state}
   end
-  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector, "data" => data}=state) do
     {:atomic, :ok} = MWorker.delete(pid)
     case MWorker.empty_workers(self()) do
       :true ->
-        GenServer.cast(collector, :generate)
+        # GenServer.cast(self(), :iterate_queries)
+        GenServer.cast(self(), {:iterate_queries, data["query"]})
       _ -> []
     end
     {:noreply, state}
@@ -178,7 +225,7 @@ defmodule Xlsx.SrsWeb.Egress.Report do
   def name_columns(rows) do
     for item <- rows,
       into: [],
-      do: [item["name"], bold: true, wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12, border: [bottom: [style: :thin, color: "#000000"], top: [style: :thin, color: "#000000"], left: [style: :thin, color: "#000000"], right: [style: :thin, color: "#000000"]]]
+      do: [item["name"], bg_color: "#d1d5da", rotate_text: Map.get(item, "rotate_text", :nil), width: Map.get(item, "width", 30),  bold: true,  wrap_text: true, align_vertical: :center, align_horizontal: :center, font: "Arial", size: 12]
   end
 
   def rows_with_out_specials(rows) do
