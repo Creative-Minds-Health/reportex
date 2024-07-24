@@ -12,8 +12,13 @@ config :xlsx,
   mongodb: File.read!("./config/secrets/mongodb.js"),
   srs_gcs: File.read!("./config/secrets/srs_gcs.json"),
   report: [
-    progress_timeout: 2_000
-  ]
+    progress_timeout: 2_000,
+    #maximum number of reports to attend in parallel per node
+    size: 1
+  ],
+  #node type :master | :slave
+  node: :master
+  #master: :"master@192.168.0.13"
 
 config  :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 
@@ -24,3 +29,5 @@ config  :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 #       format: "$date $time [$level] $metadata$message\n",
 #       metadata: [:user_id]
 #
+
+#import_config "#{Mix.env}.exs"

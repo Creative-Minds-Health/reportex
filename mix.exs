@@ -11,7 +11,8 @@ defmodule Reportex.MixProject do
         reportex: [
           applications: [
             xlsx: :permanent
-          ]
+          ],
+          cookie: "bUO6#t@&dF9ofL4U6VPJ27b9ZFg#Y3$*Wdf6J%O66QYj1pR8TP"
         ]
       ]
     ]

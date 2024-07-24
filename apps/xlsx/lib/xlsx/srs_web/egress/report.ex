@@ -1,14 +1,13 @@
-defmodule Xlsx.Report do
+defmodule Xlsx.SrsWeb.Egress.Report do
   use GenServer
   require Logger
 
-  alias Xlsx.Mnesia.Socket, as: MSocket
-  alias Xlsx.Decode.Query, as: DQuery
   alias Xlsx.Mongodb.Mongodb, as: Mongodb
-  alias Xlsx.SrsWeb.Progress, as: Progress
-  alias Xlsx.SrsWeb.Collector, as: Collector
-  alias Xlsx.SrsWeb.Worker, as: Worker
+  alias Xlsx.SrsWeb.Egress.Progress, as: Progress
+  alias Xlsx.SrsWeb.Egress.Collector, as: Collector
+  alias Xlsx.SrsWeb.Egress.Worker, as: Worker
   alias Xlsx.Mnesia.Worker, as: MWorker
+  alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API
   def start(state) do
@@ -19,15 +18,17 @@ defmodule Xlsx.Report do
   @impl true
   def init(state) do
     Process.flag(:trap_exit, true)
-    Logger.info "Reportex GenServer is running..."
-    GenServer.cast(self(), :listener)
-    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0)}
+    GenServer.cast(self(), :start)
+    {:ok, Map.put(state, "collector", %{}) |> Map.put("total", 0) |> Map.put("page", 1) |> Map.put("skip", 0) |> Map.put("status", :doing)}
   end
 
   @impl true
   def handle_call(:waiting_status, {from, _}, state) do
     :ok = MWorker.update_status(from, {:occupied, :waiting})
     {:reply, :ok, state}
+  end
+  def handle_call({:update_status, status}, _from, state) do
+    {:reply, :ok, Map.put(state, "status", status)}
   end
 
   def handle_call(_request, _from, state) do
@@ -36,24 +37,16 @@ defmodule Xlsx.Report do
 
   @impl true
   def handle_cast(:start, %{"res_socket" => res_socket, "data" => data}=state) do
-    data_decode = Poison.decode!(data) |> DQuery.decode()
-    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data_decode["socket_id"]})
+    {:ok, progress} = Progress.start(%{"parent" => self(), "status" => :waiting, "res_socket" => res_socket, "total" => 0, "documents" => 0, "socket_id" => data["socket_id"]})
     Process.monitor(progress)
-
-    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data_decode["report_key"]}) |> Enum.to_list()
-    send(self(), {:count, Mongodb.count_query(data_decode, record["collection"])})
-    {:noreply, Map.put(state, "data", data_decode) |> Map.put("record", record) |> Map.put("progress", progress) |> Map.put("socket_id", data_decode["socket_id"])}
+    [record|_] = Mongo.find(:mongo, "reportex", %{"report_key" => data["report_key"]}) |> Enum.to_list()
+    new_state = Map.put(state, "record", record) |> Map.put("progress", progress)
+    LibLogger.save_event(__MODULE__, :report_start, Map.get(data, "socket_id", :nill), new_state)
+    send(self(), {:count, Mongodb.count_query(data, record["collection"])})
+    {:noreply, new_state}
   end
-  def handle_cast(:listener, %{"lsocket" => lsocket, "parent" => parent}=state) do
-    {:ok, socket} = :gen_tcp.accept(lsocket)
-    Logger.info ["Pid #{inspect __MODULE__} socket accepted"]
-    GenServer.cast(parent, :create_child)
-    :ok = :inet.setopts(socket,[{:active,:once}])
-    {:noreply, Map.put(state, "socket", socket), 300_000};
-  end
-  def handle_cast(:stop, %{"socket" => socket}=state) do
-    :ok=:gen_tcp.close(socket)
-    Logger.warning ["#{inspect self()},#{inspect socket}... tcp_closed"]
+  def handle_cast(:stop, %{"data" => data}=state) do
+    LibLogger.save_event(__MODULE__, :kill_report, Map.get(data, "socket_id", :nill), %{})
     {:stop, :normal, state}
   end
 
@@ -62,13 +55,9 @@ defmodule Xlsx.Report do
   end
 
   @impl true
-  def handle_info({:tcp_closed, _reason}, state) do
-    GenServer.cast(self(), :stop)
-    {:noreply, state}
-  end
 
   def handle_info({:count, 0}, %{"progress" => progress, "socket_id" => socket_id, "res_socket" => res_socket}=state) do
-
+    Logger.warn "count 0"
     {:ok, response} = Poison.encode(Map.put(%{}, "total", 0) |> Map.put("status", "empty") |> Map.put("socket_id", socket_id))
     :gen_tcp.send(res_socket, response)
     GenServer.cast(progress, :stop)
@@ -79,37 +68,19 @@ defmodule Xlsx.Report do
     send(progress, {:update_total, total})
     [%{"$match" => query} | _] = data["query"];
     {:ok, date} = DateTime.now("America/Mexico_City")
-    {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress})
+    {:ok, collector} = Collector.start(%{"parent" => self(), "rows" => [], "columns" => name_columns(record["rows"]), "query" => query, "progress" => progress, "socket_id" => data["socket_id"]})
     Process.monitor(collector)
     for _index <- 1..get_n_workers(total, round(total / record["config"] ["documents"]), record["config"]["workers"]),
       {:ok, pid} = Worker.start(%{"parent" => self(), "rows" => rows_with_out_specials(record["rows"]), "query" => data["query"], "collector" => collector, "collection" => record["collection"]}),
       Process.monitor(pid),
-      :ok = MWorker.dirty_write(pid, :waiting, date),
+      :ok = MWorker.dirty_write(pid, :waiting, date, self()),
       into: %{},
       do: {pid, %{"date" => date, "status" => :waiting}}
+    new_state = Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)
+    LibLogger.save_event(__MODULE__, :count, Map.get(data, "socket_id", :nill), new_state)
     send(self(), {:run, page * record["config"]["documents"]})
-    {:noreply, Map.put(state, "total", total) |> Map.put("documents", record["config"]["documents"]) |> Map.put("collector", collector)}
+    {:noreply, new_state}
   end
-  def handle_info({:socket_turn, 1}, %{"res_socket" => res_socket, "data" => data}=state) do
-
-    MSocket.save_socket(res_socket, self(), data, 1, :doing)
-    GenServer.cast(self(), :start)
-    {:noreply, state}
-  end
-  def handle_info({:socket_turn, turn}, %{"res_socket" => res_socket, "data" => data}=state) do
-    Logger.warning ["Eres el turno número... "]
-    MSocket.save_socket(res_socket, self(), data, turn, :waiting)
-    # save_socket(socket, data, turn, date);
-    # creo que aquí debo empezar a ejecutar la funcion que mande el progreso de turno a los sockets encolados
-    {:noreply, state}
-  end
-
-  def handle_info({:tcp, res_socket, data}, %{"socket" => socket}=state) do
-    :ok=:inet.setopts(socket,[{:active, :once}])
-    send(self(), {:socket_turn, MSocket.empty_sockets()})
-    {:noreply, Map.put(state, "res_socket", res_socket) |> Map.put("data", data)}
-  end
-
 
   def handle_info({:run_by_worker, from}, %{"total" => total, "skip" => skip}=state) when skip >= total do
     GenServer.cast(from, :stop)
@@ -122,8 +93,8 @@ defmodule Xlsx.Report do
     {:noreply, state}
   end
 
-  def handle_info({:run, _limit}, %{"total" => total, "skip" => skip}=state) when skip >= total do
-    Logger.warning "Se mandaron todos los registros"
+  def handle_info({:run, _limit}, %{"total" => total, "skip" => skip, "data" => data}=state) when skip >= total do
+    LibLogger.save_event(__MODULE__, :run_all, Map.get(data, "socket_id", :nill), state)
     {:noreply, state}
   end
 
@@ -152,28 +123,28 @@ defmodule Xlsx.Report do
     {:noreply, new_state}
   end
 
-  # def handle_info({:DOWN, _ref, :process, collector, _reason}, %{"collector" => collector}=state) do
-  #   Logger.warning ["#{inspect collector}... deleted collector"]
-  #   Map.delete(state["collector"], collector)
-  #   {:noreply, state}
-  # end
-  #
-  # def handle_info({:DOWN, _ref, :process, progress, _reason}, %{"progress" => progress}=state) do
-  #   Logger.warning ["#{inspect progress}... deleted progress"]
-  #   Map.delete(state["progress"], progress)
-  #   {:noreply, state}
-  # end
-
-  def handle_info(:kill, %{"collector" => collector, "progress" => progress}=state) do
-    GenServer.cast(progress, :stop)
-    GenServer.cast(collector, :stop)
+  def handle_info(:kill, %{"status" => status, "res_socket" => res_socket, "data" => data}=state) do
+    case status do
+      :doing ->
+        :ok = LibLogger.send_progress(res_socket, Poison.encode!(Map.put(%{}, "socket_id", data["socket_id"]) |> Map.put("status", "error")))
+      _-> []
+    end
+    kill_processes(["collector", "progress"], state)
+    for {_XlsxWorker, pid, _status, _date, _report} <- MWorker.get_workers(self()),
+      GenServer.cast(pid, :stop),
+      {:atomic, :ok} = MWorker.delete(pid),
+      do: []
     GenServer.cast(self(), :stop)
     {:noreply, state}
   end
 
+  def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"status" => status}=state) when status === :done do
+    send(self(), :kill)
+    {:noreply, state}
+  end
   def handle_info({:DOWN, _ref, :process, pid, _reason}, %{"collector" => collector}=state) do
     {:atomic, :ok} = MWorker.delete(pid)
-    case MWorker.empty_workers() do
+    case MWorker.empty_workers(self()) do
       :true ->
         GenServer.cast(collector, :generate)
       _ -> []
@@ -212,5 +183,18 @@ defmodule Xlsx.Report do
 
   def rows_with_out_specials(rows) do
     for item <- rows, item["special"] === :false, do: item
+  end
+
+  def kill_processes([], _state) do
+    :ok
+  end
+  def kill_processes([h | t], state) do
+    case Map.get(state, h, :nil) do
+      :nill -> kill_processes(t, state)
+      pid ->
+        LibLogger.save_event(__MODULE__, String.to_atom("kill_" <> h), Map.get(state, "data", %{}) |> Map.get("socket_id", :nill), %{})
+        GenServer.cast(pid, :stop)
+        kill_processes(t, state)
+    end
   end
 end

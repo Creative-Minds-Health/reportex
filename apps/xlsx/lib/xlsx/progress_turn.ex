@@ -3,11 +3,11 @@ defmodule Xlsx.SrsWeb.ProgressTurn do
   require Logger
 
   alias Xlsx.Mnesia.Socket, as: MSocket
-  alias Xlsx.Decode.Query, as: DQuery
+  # alias Xlsx.Decode.Query, as: DQuery
 
   # API
-  def start(state) do
-    GenServer.start(__MODULE__, state)
+  def start_link(state) do
+    GenServer.start_link(__MODULE__, state, name: __MODULE__)
   end
 
   # Callbacks
@@ -39,9 +39,9 @@ defmodule Xlsx.SrsWeb.ProgressTurn do
       [] -> [];
       list ->
         for {_, socket, _, data, turn, _, _} <- list,
-          data_decode = Poison.decode!(data) |> DQuery.decode(),
+          # data_decode = Poison.decode!(data) |> DQuery.decode(),
           {:ok, date} = DateTime.now("America/Mexico_City"),
-          {:ok, response} = Poison.encode(%{"status" => "waiting", "message" => "Turno: " <> Integer.to_string(turn), "date_last_update" => format_date(date), "socket_id" => data_decode["socket_id"]}),
+          {:ok, response} = Poison.encode(%{"status" => "waiting", "message" => "Turno: " <> Integer.to_string(turn), "date_last_update" => format_date(date), "socket_id" => data["socket_id"]}),
         do:
         # Logger.warning ["response #{inspect   response}"]
         :gen_tcp.send(socket, response)

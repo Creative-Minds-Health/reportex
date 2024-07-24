@@ -3,8 +3,7 @@ defmodule Xlsx.Socket do
   require Logger
 
   alias Xlsx.Mnesia.Socket, as: MSocket
-  alias Xlsx.SrsWeb.ProgressTurn, as: ProgressTurn
-  alias Xlsx.Mnesia.Worker, as: MWorker
+  alias Xlsx.Mnesia.Node, as: MNode
 
   # API
   def start_link(state) do
@@ -16,7 +15,7 @@ defmodule Xlsx.Socket do
   def init(state) do
     Process.flag(:trap_exit, true)
     Logger.info "GenServer is running..."
-    case :gen_tcp.listen(4_000, [:binary, {:packet, :raw}, {:active, false}, {:reuseaddr, true}] ) do
+    case :gen_tcp.listen(4_000, [:binary, {:packet, :raw}, {:active, false}, {:reuseaddr, true}, {:buffer, 5120}] ) do
       {:ok,lsocket} ->
         GenServer.cast(__MODULE__, :create_child)
         {:ok, Map.put(state, "lsocket", lsocket)}
@@ -36,43 +35,45 @@ defmodule Xlsx.Socket do
 
   @impl true
   def handle_cast(:create_child, state) do
-    {:ok, pid} = Xlsx.Report.start(%{"lsocket" => state["lsocket"], "parent" => self()})
-    {:ok, date} = DateTime.now("America/Mexico_City")
+    {:ok, pid} = Xlsx.Request.start(%{"lsocket" => state["lsocket"], "parent" => self()})
     Process.monitor(pid)
 
-    {:ok, progress} = ProgressTurn.start(%{"parent" => self()})
-    Process.monitor(progress)
-    {:noreply, Map.put(state, "workers", Map.put(state["workers"], pid, %{"init_date" => date}))}
+    {:noreply, state}
   end
   def handle_cast(_msg, state) do
     {:noreply, state}
   end
 
   @impl true
-
-  def handle_info({:next, []}, state) do
-    # Logger.warning ["Ya no hay nada"]
+  def handle_info({:next, %{}}, state) do
+    # Logger.warn ["Ya no hay nada"]
     {:noreply, state}
   end
 
-  def handle_info({:next, {_, socket, report, _data, _turno, _date, _status}}, state) do
-    :ok = MSocket.update_status(socket, {:waiting, :doing})
-    :ok = MSocket.update_turns()
-    GenServer.cast(report, :start)
+  def handle_info({:next, {_, socket, request, data, _turno, _date, _status}}, state) do
+    # GenServer.cast(request, :start)
+
+    case MNode.next_node() do
+      :undefined ->
+        []
+      node ->
+        :ok = MSocket.update_status(socket, {:waiting, :doing})
+        :ok = MSocket.update_turns()
+        send(request, {:start_listener, %{"socket" => socket, "data" => data, "node" => node["node"]}})
+    end
     {:noreply, state}
   end
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
-    # Logger.warning ["#{inspect pid}... delete reporte"]
 
     #Se valida si el socket que se murio es el que estaba trabajando
     case MSocket.check_kill_pid(pid) do
-      {:atomic, []} -> :undefined
-      {:atomic, [{_, socket, report, _, _, _, status}|_t]} ->
+      {:atomic, []} ->
+        send(self(), {:next, get_next_socket()})
+      {:atomic, [{_, socket, _request, _, _, _, status}|_t]} ->
         :ok=:gen_tcp.close(socket)
         case status do
           :doing ->
-            send(self(), :kill_workers)
             MSocket.delete(socket)
             send(self(), {:next, get_next_socket()})
           :waiting ->
@@ -81,17 +82,6 @@ defmodule Xlsx.Socket do
         end
     end
 
-    {:noreply, Map.put(state, "workers", Map.delete(state["workers"], pid))}
-  end
-
-  def handle_info(:kill_workers, state) do
-    case MWorker.get_workers() do
-      [] -> [];
-      list ->
-        for {_, pid, _, _} <- list,
-        {:atomic, :ok} = MWorker.delete(pid),
-        do: GenServer.cast(pid, :stop)
-    end
     {:noreply, state}
   end
   def handle_info(_msg, state) do
@@ -101,14 +91,14 @@ defmodule Xlsx.Socket do
 
   @impl true
   def terminate(_reason, state) do
-    Logger.warning ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state["project"]]
+    Logger.warn ["#{inspect __MODULE__}", " terminate. pid: #{inspect self()}", ", project: ", state["project"]]
     :ok
   end
 
   def get_next_socket() do
     case MSocket.next_socket() do
       {:ok, socket} -> socket
-      _ -> []
+      _ -> %{}
     end
   end
 end

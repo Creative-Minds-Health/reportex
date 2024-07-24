@@ -19,6 +19,7 @@ defmodule Xlsx.Application do
     :ok = :mnesia.start()
     :ok = Xlsx.Mnesia.Worker.init()
     :ok = Xlsx.Mnesia.Socket.init()
+    :ok = Xlsx.Mnesia.Node.init()
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Xlsx.Supervisor]

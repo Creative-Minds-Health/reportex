@@ -1,8 +1,9 @@
-defmodule Xlsx.SrsWeb.Progress do
+defmodule Xlsx.Report.Progress do
   use GenServer
   require Logger
 
   alias Xlsx.Date.Date, as: DateLib
+  alias Xlsx.Logger.LibLogger, as: LibLogger
 
   # API
   def start(state) do
@@ -41,11 +42,11 @@ defmodule Xlsx.SrsWeb.Progress do
       Map.put(map, "file", :filename.join(File.cwd!(), file_name))
       |> Map.put("destination", Map.get(map, "destination") <> file_name <> "_" <> time  <> ".xlsx")
       |> Map.put("expires", Map.get(map, "expires", 1))
-    Logger.info ["new_map: #{inspect new_map}"]
-    {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
-    {:ok, json_response} = Poison.encode(Map.put(response, "socket_id", socket_id))
-    :gen_tcp.send(res_socket, json_response)
-    #GenServer.cast(self(), :stop)
+    # {:ok, response} = NodeJS.call({"modules/gcs/upload-url-file.js", :uploadUrlFile}, [Poison.encode!(new_map)], timeout: 30_000)
+    {:ok, json_response} = Poison.encode(Map.put(%{}, "socket_id", socket_id))
+    #:gen_tcp.send(res_socket, json_response)
+    LibLogger.save_event(__MODULE__, :upload_xlsx, socket_id, %{"destination" => new_map["destination"]})
+    LibLogger.send_progress(res_socket, json_response)
     send(parent, :kill)
     {:noreply, Map.put(state, "status", :done)}
   end
@@ -61,14 +62,14 @@ defmodule Xlsx.SrsWeb.Progress do
   def handle_info(:timeout, %{:progress_timeout => progress_timeout, "status" => status, "res_socket" => res_socket, "documents" => documents, "total" => total, "socket_id" => socket_id}=state) do
     map = case status do
       :waiting -> %{"message" => "Calculando progreso"}
-      :working -> %{"message" => "Progreso " <> Integer.to_string(documents) <> " de " <> Integer.to_string(total), "Porcentaje" => trunc((documents * 100) / total)}
+      :working -> %{"message" => "Progreso " <> number_to_string(documents) <> " de " <> number_to_string(total), "Porcentaje" => trunc((documents * 100) / total)}
       :writing -> %{"message" => "Generando archivo excel..."}
       _-> %{}
     end
     {:ok, date} = DateTime.now("America/Mexico_City")
     {:ok, response} = Poison.encode(Map.put(map, "total", total) |> Map.put("status", "doing") |> Map.put("socket_id", socket_id) |> Map.put("date_last_update", format_date(date)))
-    # Logger.info ["#{inspect response}"]
-    :gen_tcp.send(res_socket, response)
+    LibLogger.send_progress(res_socket, response)
+    #:gen_tcp.send(res_socket, response)
     {:noreply, state, progress_timeout}
   end
   def handle_info(_msg, state) do
@@ -93,5 +94,14 @@ defmodule Xlsx.SrsWeb.Progress do
   def format_date(date) do
     {{year, month, day}, {hour, minutes, seconds}} = NaiveDateTime.to_erl(date)
     get_number(day) <> "/" <> get_number(month) <> "/" <> get_number(year) <> " " <> get_number(hour) <> ":" <> get_number(minutes) <> ":" <> get_number(seconds)
+  end
+
+  defp number_to_string(number) do
+    number
+      |> Integer.to_charlist
+      |> Enum.reverse
+      |> Enum.chunk_every(3)
+      |> Enum.join(",")
+      |> String.reverse
   end
 end
